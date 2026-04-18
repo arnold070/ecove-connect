@@ -1,7 +1,9 @@
 // Server-only Supabase admin client. NEVER import this from client code.
 // Uses the service role key and BYPASSES RLS.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "./types";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Database = any;
 
 const SUPABASE_URL = process.env.ECOVE_SUPABASE_URL ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.ECOVE_SUPABASE_SERVICE_ROLE_KEY ?? "";

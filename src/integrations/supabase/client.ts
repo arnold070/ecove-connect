@@ -1,7 +1,10 @@
 // Browser Supabase client. Safe to import in components.
 // Uses the publishable (anon) key — RLS applies.
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "./types";
+
+// Loosely-typed Database. Replace with `supabase gen types` output once the schema is live.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Database = any;
 
 const SUPABASE_URL = import.meta.env.VITE_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env

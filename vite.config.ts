@@ -1,9 +1,22 @@
-// @lovable.dev/vite-tanstack-config already includes the following — do NOT add them manually
-// or the app will break with duplicate plugins:
-//   - tanstackStart, viteReact, tailwindcss, tsConfigPaths, cloudflare (build-only),
-//     componentTagger (dev-only), VITE_* env injection, @ path alias, React/TanStack dedupe,
-//     error logger plugins, and sandbox detection (port/host/strictPort).
-// You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
-export default defineConfig();
+// Expose Ecove Supabase runtime envs (ECOVE_SUPABASE_*) to the browser at build time.
+// We re-publish them as VITE_PUBLIC_* so the client bundle can read them via
+// import.meta.env. The service role key is intentionally NOT exposed.
+const supabaseUrl =
+  process.env.ECOVE_SUPABASE_URL ?? process.env.VITE_PUBLIC_SUPABASE_URL ?? "";
+const supabasePublishableKey =
+  process.env.ECOVE_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  "";
+
+export default defineConfig({
+  vite: {
+    define: {
+      "import.meta.env.VITE_PUBLIC_SUPABASE_URL": JSON.stringify(supabaseUrl),
+      "import.meta.env.VITE_PUBLIC_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(
+        supabasePublishableKey,
+      ),
+    },
+  },
+});

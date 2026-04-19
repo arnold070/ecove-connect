@@ -1,240 +1,547 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ArrowRight,
-  ShieldCheck,
   Truck,
-  CreditCard,
+  RefreshCw,
+  ShieldCheck,
   Headphones,
+  ChevronRight,
+  ChevronLeft,
+  Flame,
+  Sparkles,
+  Tag,
+  Mail,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader } from "@/components/site-header";
-import { Button } from "@/components/ui/button";
-import { formatNaira } from "@/lib/currency";
+import { ProductCard } from "@/components/product-card";
+import { sampleProducts, storefrontCategories } from "@/lib/sample-products";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
   head: () => ({
     meta: [
-      { title: "ecove — Nigeria's multi-vendor marketplace" },
+      { title: "ecove — Nigeria's online marketplace | Shop smart, live better" },
       {
         name: "description",
         content:
-          "Shop phones, fashion, groceries and more from trusted Nigerian vendors. Pay in Naira, delivered nationwide.",
+          "Shop electronics, fashion, home appliances, phones, beauty products and more at the best prices in Nigeria. Fast delivery nationwide.",
       },
     ],
   }),
 });
 
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  icon: string | null;
-}
+const HERO_SLIDES = [
+  {
+    badge: "🔥 Hot Deal",
+    title: "Smartphones\nUp to 40% Off",
+    subtitle: "Premium brands at unbeatable prices.\nLimited stock available!",
+    cta: "Shop now",
+    emoji: "📱",
+    bg: "from-primary to-primary-glow",
+  },
+  {
+    badge: "✨ New Arrivals",
+    title: "Fashion Week\nMega Sale",
+    subtitle: "Discover the latest trends in\nNigerian & African fashion.",
+    cta: "Explore",
+    emoji: "👗",
+    bg: "from-pink-500 to-rose-400",
+  },
+  {
+    badge: "⚡ Flash Sale",
+    title: "Electronics\nClearance Sale",
+    subtitle: "TVs, laptops, appliances & more.\nSave big today!",
+    cta: "Grab deals",
+    emoji: "📺",
+    bg: "from-indigo-600 to-blue-500",
+  },
+];
 
 function HomePage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name, slug, icon")
-        .is("parent_id", null)
-        .order("position", { ascending: true });
-      if (!active) return;
-      if (error) {
-        // eslint-disable-next-line no-console
-        console.warn("[ecove] could not load categories:", error.message);
-        return;
-      }
-      setCategories((data ?? []) as Category[]);
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
-
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col bg-muted/40">
       <SiteHeader />
 
-      {/* Hero */}
-      <section className="border-b border-border bg-gradient-to-br from-primary/10 via-background to-accent/20">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 md:grid-cols-2 md:py-20">
-          <div className="flex flex-col justify-center">
-            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-              Nigeria&apos;s marketplace
-            </span>
-            <h1 className="mt-4 font-display text-4xl font-bold leading-tight tracking-tight md:text-6xl">
-              Shop everything,
-              <br />
-              <span className="text-primary">delivered nationwide.</span>
-            </h1>
-            <p className="mt-4 max-w-lg text-base text-muted-foreground md:text-lg">
-              Thousands of trusted vendors. One marketplace. Pay securely in Naira and
-              get your orders delivered to your door.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button asChild size="lg" className="gap-2">
-                <Link to="/signup">
-                  Start shopping <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link to="/login">Become a vendor</Link>
-              </Button>
-            </div>
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
-              <span>
-                <strong className="text-foreground">10k+</strong> products
-              </span>
-              <span>
-                <strong className="text-foreground">500+</strong> vendors
-              </span>
-              <span>
-                <strong className="text-foreground">36</strong> states
-              </span>
-            </div>
-          </div>
-
-          <div className="relative hidden md:flex">
-            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-primary to-primary-glow opacity-90" />
-            <div className="relative m-auto grid w-full max-w-sm grid-cols-2 gap-3 p-6 text-primary-foreground">
-              <FeatureBadge icon={<Truck className="h-5 w-5" />} title="Fast delivery" />
-              <FeatureBadge icon={<CreditCard className="h-5 w-5" />} title="Pay in Naira" />
-              <FeatureBadge icon={<ShieldCheck className="h-5 w-5" />} title="Buyer protection" />
-              <FeatureBadge icon={<Headphones className="h-5 w-5" />} title="24/7 support" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
-      <section className="mx-auto w-full max-w-7xl px-4 py-12">
-        <div className="mb-6 flex items-end justify-between">
-          <h2 className="font-display text-2xl font-bold md:text-3xl">
-            Shop by category
-          </h2>
-          <span className="text-sm text-muted-foreground">10 top categories</span>
-        </div>
-
-        {categories.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">No categories yet.</p>
-            <p className="mt-1">
-              Run <code className="rounded bg-muted px-1.5 py-0.5">db/0001_init.sql</code> in
-              your Supabase SQL editor to seed categories.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-5 text-center transition hover:border-primary hover:shadow-md"
-              >
-                <span className="text-3xl transition group-hover:scale-110">
-                  {c.icon ?? "🛍️"}
-                </span>
-                <span className="text-sm font-medium">{c.name}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Featured promos */}
-      <section className="mx-auto w-full max-w-7xl px-4 pb-16">
-        <div className="grid gap-4 md:grid-cols-3">
-          <PromoCard
-            badge="Free shipping"
-            title="On orders above ₦50,000"
-            subtitle={`Get free delivery nationwide above ${formatNaira(50000)}.`}
-            tone="primary"
-          />
-          <PromoCard
-            badge="New vendor?"
-            title="0% commission for 30 days"
-            subtitle="Open your store today and start earning."
-            tone="dark"
-          />
-          <PromoCard
-            badge="Buyer protection"
-            title="Pay safely with Paystack"
-            subtitle="Your money is safe until your order arrives."
-            tone="accent"
-          />
-        </div>
-      </section>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
+        <TrustStrip />
+        <HeroSection />
+        <CategoryGrid />
+        <FlashSaleSection />
+        <PromoStrip />
+        <FeaturedSection />
+        <FullPromoBanner />
+        <BestSellersCarousel />
+        <DualBanners />
+        <NewArrivalsCarousel />
+        <Newsletter />
+      </main>
 
       <SiteFooter />
     </div>
   );
 }
 
-function FeatureBadge({ icon, title }: { icon: React.ReactNode; title: string }) {
+/* ─────────── Sections ─────────── */
+
+function TrustStrip() {
+  const items = [
+    { icon: <Truck className="h-6 w-6" />, title: "Free delivery", sub: "On orders above ₦15,000" },
+    { icon: <RefreshCw className="h-6 w-6" />, title: "Easy returns", sub: "15-day hassle-free returns" },
+    { icon: <ShieldCheck className="h-6 w-6" />, title: "Secure payment", sub: "100% protected transactions" },
+    { icon: <Headphones className="h-6 w-6" />, title: "24/7 support", sub: "Always here to help you" },
+  ];
   return (
-    <div className="flex flex-col items-start gap-2 rounded-2xl bg-white/15 p-4 backdrop-blur-sm">
-      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/20">
-        {icon}
-      </span>
-      <span className="text-sm font-semibold">{title}</span>
+    <div className="mb-6 grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((i) => (
+        <div key={i.title} className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            {i.icon}
+          </span>
+          <div>
+            <h5 className="text-sm font-bold text-foreground">{i.title}</h5>
+            <p className="text-xs text-muted-foreground">{i.sub}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function PromoCard({
-  badge,
+function HeroSection() {
+  const [slide, setSlide] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSlide((s) => (s + 1) % HERO_SLIDES.length), 5000);
+    return () => clearInterval(t);
+  }, []);
+  const current = HERO_SLIDES[slide];
+
+  return (
+    <section className="mb-6 grid gap-4 lg:grid-cols-[220px_1fr_260px]">
+      {/* Sidebar categories */}
+      <aside className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:block">
+        <div className="border-b border-border bg-muted px-4 py-2.5 text-sm font-bold text-foreground">
+          📋 Categories
+        </div>
+        <ul>
+          {storefrontCategories.map((c) => (
+            <li key={c.name}>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 border-b border-border px-4 py-2 text-left text-[13px] text-foreground transition last:border-0 hover:bg-primary/10 hover:text-primary"
+              >
+                <span className="text-base">{c.icon}</span>
+                {c.name}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </aside>
+
+      {/* Slider */}
+      <div className={`relative flex min-h-[280px] overflow-hidden rounded-xl bg-gradient-to-br ${current.bg} text-primary-foreground shadow-md transition-all duration-700`}>
+        <div className="relative z-10 flex flex-1 flex-col justify-center gap-3 p-6 md:p-10">
+          <span className="w-fit rounded-full bg-background/20 px-3 py-1 text-xs font-semibold backdrop-blur">
+            {current.badge}
+          </span>
+          <h2 className="whitespace-pre-line font-display text-3xl font-extrabold leading-tight md:text-5xl">
+            {current.title}
+          </h2>
+          <p className="whitespace-pre-line text-sm opacity-95 md:text-base">
+            {current.subtitle}
+          </p>
+          <Link
+            to="/signup"
+            className="mt-2 inline-flex w-fit items-center gap-2 rounded-md bg-background px-5 py-2.5 text-sm font-bold text-primary shadow-md transition hover:scale-105"
+          >
+            {current.cta} <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+        <div className="hidden items-center justify-center text-[10rem] opacity-90 md:flex md:w-1/3">
+          {current.emoji}
+        </div>
+        <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
+          {HERO_SLIDES.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-label={`Slide ${i + 1}`}
+              onClick={() => setSlide(i)}
+              className={`h-2 rounded-full transition-all ${i === slide ? "w-6 bg-background" : "w-2 bg-background/50"}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Promo cards */}
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+        <PromoMiniCard
+          icon={<Tag className="h-5 w-5" />}
+          title="Best Deals"
+          sub="Huge discounts every day"
+          tone="bg-gradient-to-br from-rose-500 to-red-500"
+        />
+        <PromoMiniCard
+          icon={<Sparkles className="h-5 w-5" />}
+          title="New Arrivals"
+          sub="Fresh drops this week"
+          tone="bg-gradient-to-br from-emerald-500 to-teal-500"
+        />
+        <PromoMiniCard
+          icon={<Flame className="h-5 w-5" />}
+          title="Flash Sales"
+          sub="Limited time offers"
+          tone="bg-gradient-to-br from-orange-500 to-amber-500"
+        />
+      </div>
+    </section>
+  );
+}
+
+function PromoMiniCard({
+  icon,
   title,
-  subtitle,
+  sub,
   tone,
 }: {
-  badge: string;
+  icon: React.ReactNode;
   title: string;
-  subtitle: string;
-  tone: "primary" | "dark" | "accent";
+  sub: string;
+  tone: string;
 }) {
-  const toneClasses = {
-    primary: "bg-primary text-primary-foreground",
-    dark: "bg-secondary text-secondary-foreground",
-    accent: "bg-accent text-accent-foreground",
-  }[tone];
   return (
-    <div className={`rounded-2xl p-6 ${toneClasses}`}>
-      <span className="inline-flex rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide">
-        {badge}
+    <button
+      type="button"
+      className={`group flex items-center gap-3 rounded-xl p-4 text-left text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${tone}`}
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-background/20 backdrop-blur">
+        {icon}
       </span>
-      <h3 className="mt-3 font-display text-xl font-bold leading-tight">{title}</h3>
-      <p className="mt-1 text-sm opacity-90">{subtitle}</p>
+      <div className="flex-1">
+        <h4 className="font-display text-base font-bold">{title}</h4>
+        <p className="text-xs opacity-90">{sub}</p>
+      </div>
+      <ChevronRight className="h-5 w-5 transition group-hover:translate-x-1" />
+    </button>
+  );
+}
+
+function SectionTitle({ title, href = "#" }: { title: string; href?: string }) {
+  return (
+    <div className="mb-3 flex items-end justify-between">
+      <h3 className="flex items-center gap-2 font-display text-lg font-bold text-foreground md:text-xl">
+        <span className="h-5 w-1 rounded-full bg-primary" />
+        {title}
+      </h3>
+      <a href={href} className="text-sm font-semibold text-primary hover:underline">
+        View all →
+      </a>
     </div>
   );
 }
+
+function CategoryGrid() {
+  return (
+    <section className="mb-6">
+      <SectionTitle title="Shop by category" />
+      <div className="grid grid-cols-3 gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6">
+        {storefrontCategories.map((c) => (
+          <button
+            key={c.name}
+            type="button"
+            className="group flex flex-col items-center gap-2 rounded-lg p-3 transition hover:bg-muted"
+          >
+            <span
+              className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${c.tone} text-2xl transition group-hover:scale-110`}
+            >
+              {c.icon}
+            </span>
+            <span className="text-center text-xs font-medium text-foreground">{c.name}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FlashSaleSection() {
+  const target = useRef(Date.now() + 5 * 3600 * 1000 + 42 * 60 * 1000);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const diff = Math.max(0, target.current - now);
+  const h = String(Math.floor(diff / 3600000)).padStart(2, "0");
+  const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, "0");
+  const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, "0");
+
+  return (
+    <section className="mb-6">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center gap-2 rounded-md bg-destructive px-3 py-1.5 font-display text-sm font-bold text-destructive-foreground">
+          <Flame className="h-4 w-4 animate-pulse" /> Flash Sale
+        </div>
+        <span className="text-xs text-muted-foreground">Ends in:</span>
+        <div className="flex items-center gap-1 font-mono text-sm font-bold">
+          <span className="rounded bg-foreground px-2 py-1 text-background">{h}</span>:
+          <span className="rounded bg-foreground px-2 py-1 text-background">{m}</span>:
+          <span className="rounded bg-foreground px-2 py-1 text-background">{s}</span>
+        </div>
+        <a href="#" className="ml-auto text-sm font-semibold text-primary hover:underline">
+          See all →
+        </a>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        {sampleProducts.slice(0, 8).map((p) => (
+          <ProductCard key={p.id} product={p} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PromoStrip() {
+  const items = [
+    { icon: "📱", title: "Phones under ₦50k", sub: "Budget-friendly picks" },
+    { icon: "💎", title: "Premium brands", sub: "Samsung, Apple, LG & more" },
+    { icon: "🚚", title: "Same-day delivery", sub: "Available in Lagos & Abuja" },
+    { icon: "💳", title: "Pay on delivery", sub: "Cash or card at your door" },
+  ];
+  return (
+    <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {items.map((i) => (
+        <div
+          key={i.title}
+          className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary"
+        >
+          <span className="text-3xl">{i.icon}</span>
+          <div>
+            <h5 className="text-sm font-bold text-foreground">{i.title}</h5>
+            <p className="text-xs text-muted-foreground">{i.sub}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FeaturedSection() {
+  return (
+    <section className="mb-6">
+      <SectionTitle title="Featured products" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        {sampleProducts.map((p) => (
+          <ProductCard key={p.id} product={p} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FullPromoBanner() {
+  return (
+    <section className="mb-6 overflow-hidden rounded-xl bg-gradient-to-r from-success-dark via-success to-success-dark text-success-foreground shadow-md">
+      <div className="flex flex-col items-center gap-4 p-6 md:flex-row md:p-10">
+        <div className="flex-1">
+          <h2 className="font-display text-2xl font-extrabold md:text-4xl">
+            Shop Nigerian brands
+            <br />& support local 🇳🇬
+          </h2>
+          <p className="mt-2 text-sm opacity-95 md:text-base">
+            Discover quality products made in Nigeria.
+            <br />
+            Support local entrepreneurs and businesses.
+          </p>
+          <a
+            href="#"
+            className="mt-4 inline-flex items-center gap-2 rounded-md bg-background px-5 py-2.5 text-sm font-bold text-success-dark shadow transition hover:scale-105"
+          >
+            Explore Made in Nigeria <ChevronRight className="h-4 w-4" />
+          </a>
+        </div>
+        <span className="text-7xl md:text-9xl">🛍️</span>
+      </div>
+    </section>
+  );
+}
+
+function CarouselSection({
+  title,
+  items,
+}: {
+  title: string;
+  items: typeof sampleProducts;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const scroll = (dir: 1 | -1) => {
+    trackRef.current?.scrollBy({ left: dir * 600, behavior: "smooth" });
+  };
+  return (
+    <section className="mb-6">
+      <SectionTitle title={title} />
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => scroll(-1)}
+          aria-label="Scroll left"
+          className="absolute left-0 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 -translate-x-3 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-md transition hover:bg-primary hover:text-primary-foreground md:flex"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <div
+          ref={trackRef}
+          className="scrollbar-none flex gap-3 overflow-x-auto scroll-smooth pb-2"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {items.map((p) => (
+            <div key={p.id} className="w-[160px] shrink-0 sm:w-[200px]">
+              <ProductCard product={p} />
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => scroll(1)}
+          aria-label="Scroll right"
+          className="absolute right-0 top-1/2 z-10 hidden h-10 w-10 -translate-y-1/2 translate-x-3 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-md transition hover:bg-primary hover:text-primary-foreground md:flex"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function BestSellersCarousel() {
+  const items = [...sampleProducts].sort(() => 0.5 - Math.random());
+  return <CarouselSection title="Best sellers" items={items} />;
+}
+
+function DualBanners() {
+  return (
+    <div className="mb-6 grid gap-3 md:grid-cols-2">
+      <div className="rounded-xl bg-gradient-to-br from-destructive to-rose-500 p-6 text-destructive-foreground shadow-sm">
+        <h3 className="font-display text-xl font-bold">Clearance sale 🔥</h3>
+        <p className="mt-1 text-sm opacity-95">
+          Up to 60% off on selected items.
+          <br />
+          Limited quantities available!
+        </p>
+        <a
+          href="#"
+          className="mt-3 inline-flex items-center gap-1 rounded-md bg-background px-4 py-2 text-sm font-bold text-destructive"
+        >
+          Shop clearance →
+        </a>
+      </div>
+      <div className="rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 p-6 text-primary-foreground shadow-sm">
+        <h3 className="font-display text-xl font-bold">New arrivals ✨</h3>
+        <p className="mt-1 text-sm opacity-95">
+          Fresh products added daily.
+          <br />
+          Be the first to grab them!
+        </p>
+        <a
+          href="#"
+          className="mt-3 inline-flex items-center gap-1 rounded-md bg-background px-4 py-2 text-sm font-bold text-indigo-600"
+        >
+          Explore new →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function NewArrivalsCarousel() {
+  return <CarouselSection title="New arrivals" items={[...sampleProducts].reverse()} />;
+}
+
+function Newsletter() {
+  return (
+    <section className="mb-6 grid gap-4 rounded-xl bg-foreground p-6 text-background shadow-md md:grid-cols-2 md:items-center md:p-8">
+      <div className="flex items-start gap-3">
+        <Mail className="h-8 w-8 text-primary" />
+        <div>
+          <h3 className="font-display text-xl font-bold">Get exclusive deals in your inbox</h3>
+          <p className="mt-1 text-sm opacity-80">
+            Subscribe for special offers, flash sales & new arrivals.
+          </p>
+        </div>
+      </div>
+      <form className="flex gap-2">
+        <input
+          type="email"
+          required
+          placeholder="Enter your email address"
+          className="h-11 flex-1 rounded-md bg-background px-4 text-sm text-foreground outline-none ring-primary focus:ring-2"
+        />
+        <button
+          type="submit"
+          className="h-11 rounded-md bg-primary px-5 text-sm font-bold text-primary-foreground transition hover:opacity-90"
+        >
+          Subscribe
+        </button>
+      </form>
+    </section>
+  );
+}
+
+/* ─────────── Footer ─────────── */
 
 function SiteFooter() {
   return (
-    <footer className="mt-auto border-t border-border bg-secondary text-secondary-foreground">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 md:grid-cols-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary font-display font-bold text-primary-foreground">
-              e
-            </span>
-            <span className="font-display text-xl font-bold">ecove</span>
-          </div>
-          <p className="mt-3 text-sm opacity-75">
-            Nigeria&apos;s multi-vendor marketplace.
+    <footer className="mt-auto bg-foreground text-background">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-12 md:grid-cols-5">
+        <div className="md:col-span-2">
+          <Link to="/" className="flex items-center gap-1 font-display text-2xl font-extrabold">
+            <span>eco</span>
+            <span className="text-primary">ve</span>
+            <span className="ml-0.5 mt-3 h-2 w-2 rounded-full bg-primary" />
+          </Link>
+          <p className="mt-3 max-w-sm text-sm opacity-75">
+            Nigeria&apos;s trusted online marketplace. Shop electronics, fashion, home goods,
+            beauty products and more. Fast delivery, secure payments, and excellent customer
+            service.
           </p>
+          <div className="mt-4 flex gap-2">
+            {["f", "𝕏", "in", "📷", "▶"].map((s) => (
+              <a
+                key={s}
+                href="#"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-background/10 text-sm transition hover:bg-primary"
+              >
+                {s}
+              </a>
+            ))}
+          </div>
         </div>
-        <FooterCol title="Shop" items={["Categories", "Deals", "New arrivals", "Brands"]} />
-        <FooterCol title="Sell" items={["Open a store", "Vendor center", "Pricing", "Help"]} />
-        <FooterCol title="Company" items={["About", "Contact", "Privacy", "Terms"]} />
+        <FooterCol
+          title="Customer service"
+          items={["Help center", "Track my order", "Returns & refunds", "Delivery info", "Contact us"]}
+        />
+        <FooterCol
+          title="Sell on ecove"
+          items={["Become a seller", "Seller center", "Seller policies", "Seller FAQs", "Advertise"]}
+        />
+        <FooterCol
+          title="Company"
+          items={["About ecove", "Careers", "Press & media", "Privacy policy", "Terms of service"]}
+        />
       </div>
-      <div className="border-t border-white/10 px-4 py-4 text-center text-xs opacity-60">
-        © {new Date().getFullYear()} ecove. All rights reserved.
+      <div className="border-t border-background/10">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-4 text-xs opacity-75 md:flex-row">
+          <span>© {new Date().getFullYear()} ecove Nigeria Ltd. All rights reserved.</span>
+          <div className="flex gap-2">
+            {["Paystack", "Flutterwave", "VISA", "Mastercard", "Bank Transfer"].map((p) => (
+              <span
+                key={p}
+                className="rounded border border-background/20 bg-background/5 px-2 py-1"
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
     </footer>
   );
@@ -247,7 +554,7 @@ function FooterCol({ title, items }: { title: string; items: string[] }) {
       <ul className="mt-3 space-y-2 text-sm opacity-75">
         {items.map((i) => (
           <li key={i}>
-            <a href="#" className="hover:opacity-100 hover:underline">
+            <a href="#" className="hover:text-primary hover:opacity-100">
               {i}
             </a>
           </li>

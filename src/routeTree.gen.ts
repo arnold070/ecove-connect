@@ -14,7 +14,18 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorIndexRouteImport } from './routes/vendor.index'
-import { Route as VendorStubHelperRouteImport } from './routes/vendor._stub-helper'
+import { Route as VendorStoreRouteImport } from './routes/vendor.store'
+import { Route as VendorReviewsRouteImport } from './routes/vendor.reviews'
+import { Route as VendorReturnsRouteImport } from './routes/vendor.returns'
+import { Route as VendorReportsRouteImport } from './routes/vendor.reports'
+import { Route as VendorProfileRouteImport } from './routes/vendor.profile'
+import { Route as VendorPoliciesRouteImport } from './routes/vendor.policies'
+import { Route as VendorOrdersRouteImport } from './routes/vendor.orders'
+import { Route as VendorInventoryRouteImport } from './routes/vendor.inventory'
+import { Route as VendorEarningsRouteImport } from './routes/vendor.earnings'
+import { Route as VendorProductsIndexRouteImport } from './routes/vendor.products.index'
+import { Route as VendorProductsPendingRouteImport } from './routes/vendor.products.pending'
+import { Route as VendorProductsNewRouteImport } from './routes/vendor.products.new'
 
 const VendorRoute = VendorRouteImport.update({
   id: '/vendor',
@@ -41,8 +52,64 @@ const VendorIndexRoute = VendorIndexRouteImport.update({
   path: '/',
   getParentRoute: () => VendorRoute,
 } as any)
-const VendorStubHelperRoute = VendorStubHelperRouteImport.update({
-  id: '/_stub-helper',
+const VendorStoreRoute = VendorStoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorReviewsRoute = VendorReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorReturnsRoute = VendorReturnsRouteImport.update({
+  id: '/returns',
+  path: '/returns',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorReportsRoute = VendorReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorProfileRoute = VendorProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorPoliciesRoute = VendorPoliciesRouteImport.update({
+  id: '/policies',
+  path: '/policies',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorOrdersRoute = VendorOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorInventoryRoute = VendorInventoryRouteImport.update({
+  id: '/inventory',
+  path: '/inventory',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorEarningsRoute = VendorEarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorProductsIndexRoute = VendorProductsIndexRouteImport.update({
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorProductsPendingRoute = VendorProductsPendingRouteImport.update({
+  id: '/products/pending',
+  path: '/products/pending',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorProductsNewRoute = VendorProductsNewRouteImport.update({
+  id: '/products/new',
+  path: '/products/new',
   getParentRoute: () => VendorRoute,
 } as any)
 
@@ -50,14 +117,38 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
-  '/vendor': typeof VendorStubHelperRoute
+  '/vendor': typeof VendorRouteWithChildren
+  '/vendor/earnings': typeof VendorEarningsRoute
+  '/vendor/inventory': typeof VendorInventoryRoute
+  '/vendor/orders': typeof VendorOrdersRoute
+  '/vendor/policies': typeof VendorPoliciesRoute
+  '/vendor/profile': typeof VendorProfileRoute
+  '/vendor/reports': typeof VendorReportsRoute
+  '/vendor/returns': typeof VendorReturnsRoute
+  '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/store': typeof VendorStoreRoute
   '/vendor/': typeof VendorIndexRoute
+  '/vendor/products/new': typeof VendorProductsNewRoute
+  '/vendor/products/pending': typeof VendorProductsPendingRoute
+  '/vendor/products/': typeof VendorProductsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/vendor/earnings': typeof VendorEarningsRoute
+  '/vendor/inventory': typeof VendorInventoryRoute
+  '/vendor/orders': typeof VendorOrdersRoute
+  '/vendor/policies': typeof VendorPoliciesRoute
+  '/vendor/profile': typeof VendorProfileRoute
+  '/vendor/reports': typeof VendorReportsRoute
+  '/vendor/returns': typeof VendorReturnsRoute
+  '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/store': typeof VendorStoreRoute
   '/vendor': typeof VendorIndexRoute
+  '/vendor/products/new': typeof VendorProductsNewRoute
+  '/vendor/products/pending': typeof VendorProductsPendingRoute
+  '/vendor/products': typeof VendorProductsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -65,22 +156,77 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/vendor': typeof VendorRouteWithChildren
-  '/vendor/_stub-helper': typeof VendorStubHelperRoute
+  '/vendor/earnings': typeof VendorEarningsRoute
+  '/vendor/inventory': typeof VendorInventoryRoute
+  '/vendor/orders': typeof VendorOrdersRoute
+  '/vendor/policies': typeof VendorPoliciesRoute
+  '/vendor/profile': typeof VendorProfileRoute
+  '/vendor/reports': typeof VendorReportsRoute
+  '/vendor/returns': typeof VendorReturnsRoute
+  '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/store': typeof VendorStoreRoute
   '/vendor/': typeof VendorIndexRoute
+  '/vendor/products/new': typeof VendorProductsNewRoute
+  '/vendor/products/pending': typeof VendorProductsPendingRoute
+  '/vendor/products/': typeof VendorProductsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/signup' | '/vendor' | '/vendor/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/vendor'
+    | '/vendor/earnings'
+    | '/vendor/inventory'
+    | '/vendor/orders'
+    | '/vendor/policies'
+    | '/vendor/profile'
+    | '/vendor/reports'
+    | '/vendor/returns'
+    | '/vendor/reviews'
+    | '/vendor/store'
+    | '/vendor/'
+    | '/vendor/products/new'
+    | '/vendor/products/pending'
+    | '/vendor/products/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/signup' | '/vendor'
+  to:
+    | '/'
+    | '/login'
+    | '/signup'
+    | '/vendor/earnings'
+    | '/vendor/inventory'
+    | '/vendor/orders'
+    | '/vendor/policies'
+    | '/vendor/profile'
+    | '/vendor/reports'
+    | '/vendor/returns'
+    | '/vendor/reviews'
+    | '/vendor/store'
+    | '/vendor'
+    | '/vendor/products/new'
+    | '/vendor/products/pending'
+    | '/vendor/products'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/signup'
     | '/vendor'
-    | '/vendor/_stub-helper'
+    | '/vendor/earnings'
+    | '/vendor/inventory'
+    | '/vendor/orders'
+    | '/vendor/policies'
+    | '/vendor/profile'
+    | '/vendor/reports'
+    | '/vendor/returns'
+    | '/vendor/reviews'
+    | '/vendor/store'
     | '/vendor/'
+    | '/vendor/products/new'
+    | '/vendor/products/pending'
+    | '/vendor/products/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -127,24 +273,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorIndexRouteImport
       parentRoute: typeof VendorRoute
     }
-    '/vendor/_stub-helper': {
-      id: '/vendor/_stub-helper'
-      path: ''
-      fullPath: '/vendor'
-      preLoaderRoute: typeof VendorStubHelperRouteImport
+    '/vendor/store': {
+      id: '/vendor/store'
+      path: '/store'
+      fullPath: '/vendor/store'
+      preLoaderRoute: typeof VendorStoreRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/reviews': {
+      id: '/vendor/reviews'
+      path: '/reviews'
+      fullPath: '/vendor/reviews'
+      preLoaderRoute: typeof VendorReviewsRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/returns': {
+      id: '/vendor/returns'
+      path: '/returns'
+      fullPath: '/vendor/returns'
+      preLoaderRoute: typeof VendorReturnsRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/reports': {
+      id: '/vendor/reports'
+      path: '/reports'
+      fullPath: '/vendor/reports'
+      preLoaderRoute: typeof VendorReportsRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/profile': {
+      id: '/vendor/profile'
+      path: '/profile'
+      fullPath: '/vendor/profile'
+      preLoaderRoute: typeof VendorProfileRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/policies': {
+      id: '/vendor/policies'
+      path: '/policies'
+      fullPath: '/vendor/policies'
+      preLoaderRoute: typeof VendorPoliciesRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/orders': {
+      id: '/vendor/orders'
+      path: '/orders'
+      fullPath: '/vendor/orders'
+      preLoaderRoute: typeof VendorOrdersRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/inventory': {
+      id: '/vendor/inventory'
+      path: '/inventory'
+      fullPath: '/vendor/inventory'
+      preLoaderRoute: typeof VendorInventoryRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/earnings': {
+      id: '/vendor/earnings'
+      path: '/earnings'
+      fullPath: '/vendor/earnings'
+      preLoaderRoute: typeof VendorEarningsRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/products/': {
+      id: '/vendor/products/'
+      path: '/products'
+      fullPath: '/vendor/products/'
+      preLoaderRoute: typeof VendorProductsIndexRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/products/pending': {
+      id: '/vendor/products/pending'
+      path: '/products/pending'
+      fullPath: '/vendor/products/pending'
+      preLoaderRoute: typeof VendorProductsPendingRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/products/new': {
+      id: '/vendor/products/new'
+      path: '/products/new'
+      fullPath: '/vendor/products/new'
+      preLoaderRoute: typeof VendorProductsNewRouteImport
       parentRoute: typeof VendorRoute
     }
   }
 }
 
 interface VendorRouteChildren {
-  VendorStubHelperRoute: typeof VendorStubHelperRoute
+  VendorEarningsRoute: typeof VendorEarningsRoute
+  VendorInventoryRoute: typeof VendorInventoryRoute
+  VendorOrdersRoute: typeof VendorOrdersRoute
+  VendorPoliciesRoute: typeof VendorPoliciesRoute
+  VendorProfileRoute: typeof VendorProfileRoute
+  VendorReportsRoute: typeof VendorReportsRoute
+  VendorReturnsRoute: typeof VendorReturnsRoute
+  VendorReviewsRoute: typeof VendorReviewsRoute
+  VendorStoreRoute: typeof VendorStoreRoute
   VendorIndexRoute: typeof VendorIndexRoute
+  VendorProductsNewRoute: typeof VendorProductsNewRoute
+  VendorProductsPendingRoute: typeof VendorProductsPendingRoute
+  VendorProductsIndexRoute: typeof VendorProductsIndexRoute
 }
 
 const VendorRouteChildren: VendorRouteChildren = {
-  VendorStubHelperRoute: VendorStubHelperRoute,
+  VendorEarningsRoute: VendorEarningsRoute,
+  VendorInventoryRoute: VendorInventoryRoute,
+  VendorOrdersRoute: VendorOrdersRoute,
+  VendorPoliciesRoute: VendorPoliciesRoute,
+  VendorProfileRoute: VendorProfileRoute,
+  VendorReportsRoute: VendorReportsRoute,
+  VendorReturnsRoute: VendorReturnsRoute,
+  VendorReviewsRoute: VendorReviewsRoute,
+  VendorStoreRoute: VendorStoreRoute,
   VendorIndexRoute: VendorIndexRoute,
+  VendorProductsNewRoute: VendorProductsNewRoute,
+  VendorProductsPendingRoute: VendorProductsPendingRoute,
+  VendorProductsIndexRoute: VendorProductsIndexRoute,
 }
 
 const VendorRouteWithChildren =
@@ -159,3 +404,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

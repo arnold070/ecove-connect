@@ -51,6 +51,8 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-dark: var(--success-dark);
+  --color-success-light: var(--success-light);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-border: var(--border);
@@ -104,6 +106,8 @@
   --destructive-foreground: oklch(1 0 0);
   --success: oklch(0.68 0.15 150);
   --success-foreground: oklch(1 0 0);
+  --success-dark: oklch(0.52 0.13 150);
+  --success-light: oklch(0.96 0.04 150);
   --warning: oklch(0.82 0.16 80);
   --warning-foreground: oklch(0.18 0 0);
 

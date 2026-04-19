@@ -104,6 +104,8 @@
   --destructive-foreground: oklch(1 0 0);
   --success: oklch(0.68 0.15 150);
   --success-foreground: oklch(1 0 0);
+  --success-dark: oklch(0.52 0.13 150);
+  --success-light: oklch(0.96 0.04 150);
   --warning: oklch(0.82 0.16 80);
   --warning-foreground: oklch(0.18 0 0);
 

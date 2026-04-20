@@ -412,9 +412,11 @@ function CarouselSection({
   );
 }
 
+// Stable order so SSR and client render matches (no Math.random during render).
+const bestSellers = [...sampleProducts].sort((a, b) => b.reviews - a.reviews);
+
 function BestSellersCarousel() {
-  const items = [...sampleProducts].sort(() => 0.5 - Math.random());
-  return <CarouselSection title="Best sellers" items={items} />;
+  return <CarouselSection title="Best sellers" items={bestSellers} />;
 }
 
 function DualBanners() {

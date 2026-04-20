@@ -379,7 +379,7 @@ function NewProductPage() {
         title="Add New Product"
         subtitle="Set up your vendor store first"
       >
-        <Card className="border-yellow-300 bg-yellow-50">
+        <Card className="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
           <CardContent className="flex items-start gap-3 p-6">
             <AlertTriangle className="mt-0.5 h-5 w-5 text-yellow-600" />
             <div className="space-y-2">
@@ -775,7 +775,7 @@ function NewProductPage() {
           </Card>
 
           {/* Submission rules */}
-          <Card className="border-yellow-300 bg-yellow-50">
+          <Card className="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
             <CardContent className="space-y-2 p-5">
               <p className="text-sm font-bold">⚠️ Submission Rules</p>
               <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">

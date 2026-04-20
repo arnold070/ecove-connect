@@ -1,6 +1,286 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { VendorStub } from "@/components/vendor-stub";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+
+import { VendorShell } from "@/components/vendor-shell";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/auth/AuthProvider";
+import { supabase } from "@/integrations/supabase/client";
+import { slugify } from "@/lib/slug";
 
 export const Route = createFileRoute("/vendor/profile")({
-  component: () => <VendorStub title="Profile & Bank" subtitle="Account info and payout details" />,
+  component: VendorProfilePage,
 });
+
+const schema = z.object({
+  store_name: z.string().trim().min(2, "Store name is required").max(80),
+  slug: z
+    .string()
+    .trim()
+    .min(3, "Slug must be at least 3 characters")
+    .max(60)
+    .regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers, and hyphens only"),
+  description: z.string().trim().max(500).optional().or(z.literal("")),
+  whatsapp: z.string().trim().max(20).optional().or(z.literal("")),
+  payout_bank_name: z.string().trim().max(80).optional().or(z.literal("")),
+  payout_account_name: z.string().trim().max(80).optional().or(z.literal("")),
+  payout_account_number: z.string().trim().max(30).optional().or(z.literal("")),
+});
+
+type FormValues = z.infer<typeof schema>;
+
+interface VendorRow {
+  id: string;
+  store_name: string;
+  slug: string;
+  description: string | null;
+  whatsapp: string | null;
+  payout_bank_name: string | null;
+  payout_account_name: string | null;
+  payout_account_number: string | null;
+  status: string;
+}
+
+function VendorProfilePage() {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [vendor, setVendor] = useState<VendorRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      store_name: "",
+      slug: "",
+      description: "",
+      whatsapp: "",
+      payout_bank_name: "",
+      payout_account_name: "",
+      payout_account_number: "",
+    },
+  });
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      void navigate({ to: "/login" });
+      return;
+    }
+    let mounted = true;
+    void (async () => {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select(
+          "id, store_name, slug, description, whatsapp, payout_bank_name, payout_account_name, payout_account_number, status",
+        )
+        .eq("owner_id", user.id)
+        .maybeSingle();
+      if (!mounted) return;
+      if (error) {
+        toast.error(error.message);
+      }
+      if (data) {
+        setVendor(data as VendorRow);
+        form.reset({
+          store_name: data.store_name ?? "",
+          slug: data.slug ?? "",
+          description: data.description ?? "",
+          whatsapp: data.whatsapp ?? "",
+          payout_bank_name: data.payout_bank_name ?? "",
+          payout_account_name: data.payout_account_name ?? "",
+          payout_account_number: data.payout_account_number ?? "",
+        });
+      }
+      setLoading(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [user, authLoading, navigate, form]);
+
+  const onSubmit = async (values: FormValues) => {
+    if (!user) return;
+    setSubmitting(true);
+    try {
+      const payload = {
+        owner_id: user.id,
+        store_name: values.store_name,
+        slug: values.slug,
+        description: values.description || null,
+        whatsapp: values.whatsapp || null,
+        payout_bank_name: values.payout_bank_name || null,
+        payout_account_name: values.payout_account_name || null,
+        payout_account_number: values.payout_account_number || null,
+      };
+
+      if (vendor) {
+        const { error } = await supabase
+          .from("vendors")
+          .update(payload)
+          .eq("id", vendor.id);
+        if (error) throw error;
+        toast.success("Vendor profile updated");
+      } else {
+        const { data, error } = await supabase
+          .from("vendors")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (error) throw error;
+        toast.success("Vendor profile created — you can now list products");
+        // Ensure the signed-in user has the 'vendor' role so RLS allows product inserts.
+        await supabase
+          .from("user_roles")
+          .insert({ user_id: user.id, role: "vendor" })
+          .then(({ error: roleErr }) => {
+            if (roleErr && !/duplicate|unique/i.test(roleErr.message)) {
+              // eslint-disable-next-line no-console
+              console.warn("[ecove] add vendor role:", roleErr.message);
+            }
+          });
+        void navigate({ to: "/vendor/products/new" });
+        return;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save";
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const storeName = form.watch("store_name");
+  const slugValue = form.watch("slug");
+  // Auto-fill slug from store name while the slug field is untouched/empty.
+  useEffect(() => {
+    if (!vendor && storeName && !slugValue) {
+      form.setValue("slug", slugify(storeName), { shouldValidate: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeName]);
+
+  return (
+    <VendorShell
+      title={vendor ? "Store Profile" : "Create your store"}
+      subtitle={
+        vendor
+          ? "Update your store info and payout details"
+          : "Set up your vendor profile before listing products"
+      }
+    >
+      {loading ? (
+        <div className="flex items-center justify-center py-20 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      ) : (
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-3xl">
+          <Card>
+            <CardHeader>
+              <CardTitle>Store details</CardTitle>
+              <CardDescription>Public information shown to shoppers</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="store_name">Store name *</Label>
+                <Input id="store_name" {...form.register("store_name")} />
+                {form.formState.errors.store_name && (
+                  <p className="text-xs text-destructive">
+                    {form.formState.errors.store_name.message}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="slug">Store URL slug *</Label>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">ecove.com/store/</span>
+                  <Input id="slug" {...form.register("slug")} className="flex-1" />
+                </div>
+                {form.formState.errors.slug && (
+                  <p className="text-xs text-destructive">{form.formState.errors.slug.message}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  rows={4}
+                  placeholder="Tell customers what your store is about..."
+                  {...form.register("description")}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp">WhatsApp contact</Label>
+                <Input
+                  id="whatsapp"
+                  placeholder="+234..."
+                  {...form.register("whatsapp")}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Payout / Bank details</CardTitle>
+              <CardDescription>
+                Used for remitting your earnings. Kept private.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="payout_bank_name">Bank name</Label>
+                  <Input id="payout_bank_name" {...form.register("payout_bank_name")} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="payout_account_name">Account name</Label>
+                  <Input id="payout_account_name" {...form.register("payout_account_name")} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payout_account_number">Account number</Label>
+                <Input
+                  id="payout_account_number"
+                  inputMode="numeric"
+                  {...form.register("payout_account_number")}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {vendor && (
+            <div className="text-sm text-muted-foreground">
+              Status:{" "}
+              <span className="font-medium capitalize text-foreground">{vendor.status}</span>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button type="submit" disabled={submitting}>
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {vendor ? "Save changes" : "Create store"}
+            </Button>
+            {vendor && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void navigate({ to: "/vendor" })}
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+        </form>
+      )}
+    </VendorShell>
+  );
+}

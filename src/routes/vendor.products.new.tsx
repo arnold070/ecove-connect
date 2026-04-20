@@ -365,7 +365,7 @@ function NewProductPage() {
 
   if (authLoading || vendorLoading) {
     return (
-      <VendorShell pageTitle="Add New Product" pageSubtitle="Loading…">
+      <VendorShell title="Add New Product" subtitle="Loading…">
         <div className="flex items-center justify-center py-20 text-muted-foreground">
           <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
         </div>
@@ -376,8 +376,8 @@ function NewProductPage() {
   if (!vendor) {
     return (
       <VendorShell
-        pageTitle="Add New Product"
-        pageSubtitle="Set up your vendor store first"
+        title="Add New Product"
+        subtitle="Set up your vendor store first"
       >
         <Card className="border-yellow-300 bg-yellow-50">
           <CardContent className="flex items-start gap-3 p-6">
@@ -400,8 +400,8 @@ function NewProductPage() {
 
   return (
     <VendorShell
-      pageTitle="Add New Product"
-      pageSubtitle="Submit a product for admin review before it goes live."
+      title="Add New Product"
+      subtitle="Submit a product for admin review before it goes live."
     >
       <form
         onSubmit={handleSubmit(onSubmit)}

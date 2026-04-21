@@ -200,6 +200,39 @@ function VendorProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeName]);
 
+  // Debounced slug uniqueness check
+  useEffect(() => {
+    const slug = slugValue?.trim().toLowerCase();
+    if (!slug || !/^[a-z0-9-]{3,}$/.test(slug)) {
+      setSlugStatus("idle");
+      return;
+    }
+    if (vendor && slug === vendor.slug) {
+      setSlugStatus("available");
+      return;
+    }
+    setSlugStatus("checking");
+    const handle = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (error) {
+        setSlugStatus("idle");
+        return;
+      }
+      if (data && (!vendor || data.id !== vendor.id)) {
+        setSlugStatus("taken");
+        form.setError("slug", { type: "manual", message: "This store URL is already taken" });
+      } else {
+        setSlugStatus("available");
+        form.clearErrors("slug");
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [slugValue, vendor, form]);
+
   return (
     <VendorShell
       title={vendor ? "Store Profile" : "Create your store"}

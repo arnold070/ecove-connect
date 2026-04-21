@@ -59,6 +59,7 @@ function VendorProfilePage() {
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),

@@ -133,6 +133,10 @@ function VendorProfilePage() {
 
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
+    if (slugStatus === "taken") {
+      form.setError("slug", { type: "manual", message: "This store URL is already taken" });
+      return;
+    }
     setSubmitting(true);
     setSaveError(null);
     try {

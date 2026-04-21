@@ -288,7 +288,7 @@ function VendorProfilePage() {
                 ) : slugStatus === "checking" ? (
                   <p className="text-xs text-muted-foreground">Checking availability…</p>
                 ) : slugStatus === "available" ? (
-                  <p className="text-xs text-emerald-600">✓ Available</p>
+                  <p className="text-xs text-primary">✓ Available</p>
                 ) : slugStatus === "taken" ? (
                   <p className="text-xs text-destructive">This store URL is already taken — try another</p>
                 ) : null}

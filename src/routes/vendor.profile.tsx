@@ -59,6 +59,7 @@ function VendorProfilePage() {
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken">("idle");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -132,6 +133,10 @@ function VendorProfilePage() {
 
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
+    if (slugStatus === "taken") {
+      form.setError("slug", { type: "manual", message: "This store URL is already taken" });
+      return;
+    }
     setSubmitting(true);
     setSaveError(null);
     try {
@@ -199,6 +204,39 @@ function VendorProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeName]);
 
+  // Debounced slug uniqueness check
+  useEffect(() => {
+    const slug = slugValue?.trim().toLowerCase();
+    if (!slug || !/^[a-z0-9-]{3,}$/.test(slug)) {
+      setSlugStatus("idle");
+      return;
+    }
+    if (vendor && slug === vendor.slug) {
+      setSlugStatus("available");
+      return;
+    }
+    setSlugStatus("checking");
+    const handle = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (error) {
+        setSlugStatus("idle");
+        return;
+      }
+      if (data && (!vendor || data.id !== vendor.id)) {
+        setSlugStatus("taken");
+        form.setError("slug", { type: "manual", message: "This store URL is already taken" });
+      } else {
+        setSlugStatus("available");
+        form.clearErrors("slug");
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [slugValue, vendor, form]);
+
   return (
     <VendorShell
       title={vendor ? "Store Profile" : "Create your store"}
@@ -249,9 +287,15 @@ function VendorProfilePage() {
                   <span className="text-sm text-muted-foreground">ecove.com/store/</span>
                   <Input id="slug" {...form.register("slug")} className="flex-1" />
                 </div>
-                {form.formState.errors.slug && (
+                {form.formState.errors.slug ? (
                   <p className="text-xs text-destructive">{form.formState.errors.slug.message}</p>
-                )}
+                ) : slugStatus === "checking" ? (
+                  <p className="text-xs text-muted-foreground">Checking availability…</p>
+                ) : slugStatus === "available" ? (
+                  <p className="text-xs text-primary">✓ Available</p>
+                ) : slugStatus === "taken" ? (
+                  <p className="text-xs text-destructive">This store URL is already taken — try another</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>

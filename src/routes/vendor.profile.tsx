@@ -283,9 +283,15 @@ function VendorProfilePage() {
                   <span className="text-sm text-muted-foreground">ecove.com/store/</span>
                   <Input id="slug" {...form.register("slug")} className="flex-1" />
                 </div>
-                {form.formState.errors.slug && (
+                {form.formState.errors.slug ? (
                   <p className="text-xs text-destructive">{form.formState.errors.slug.message}</p>
-                )}
+                ) : slugStatus === "checking" ? (
+                  <p className="text-xs text-muted-foreground">Checking availability…</p>
+                ) : slugStatus === "available" ? (
+                  <p className="text-xs text-emerald-600">✓ Available</p>
+                ) : slugStatus === "taken" ? (
+                  <p className="text-xs text-destructive">This store URL is already taken — try another</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>

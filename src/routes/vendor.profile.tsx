@@ -80,20 +80,39 @@ function VendorProfilePage() {
       return;
     }
     let mounted = true;
+    setLoadError(null);
+    setLoading(true);
     void (async () => {
-      const { data, error } = await supabase
+      const queryPromise = supabase
         .from("vendors")
         .select(
           "id, store_name, slug, description, whatsapp, payout_bank_name, payout_account_name, payout_account_number, status",
         )
         .eq("owner_id", user.id)
         .maybeSingle();
+
+      const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              data: null,
+              error: { message: "Vendor lookup timed out after 10s. Check your connection or RLS policies." },
+            }),
+          10000,
+        ),
+      );
+
+      const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as {
+        data: VendorRow | null;
+        error: { message: string } | null;
+      };
       if (!mounted) return;
       if (error) {
+        setLoadError(error.message);
         toast.error(error.message);
       }
       if (data) {
-        setVendor(data as VendorRow);
+        setVendor(data);
         form.reset({
           store_name: data.store_name ?? "",
           slug: data.slug ?? "",

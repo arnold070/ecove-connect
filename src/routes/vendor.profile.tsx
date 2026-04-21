@@ -12,6 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { slugify } from "@/lib/slug";
@@ -55,6 +57,8 @@ function VendorProfilePage() {
   const [vendor, setVendor] = useState<VendorRow | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -76,20 +80,39 @@ function VendorProfilePage() {
       return;
     }
     let mounted = true;
+    setLoadError(null);
+    setLoading(true);
     void (async () => {
-      const { data, error } = await supabase
+      const queryPromise = supabase
         .from("vendors")
         .select(
           "id, store_name, slug, description, whatsapp, payout_bank_name, payout_account_name, payout_account_number, status",
         )
         .eq("owner_id", user.id)
         .maybeSingle();
+
+      const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              data: null,
+              error: { message: "Vendor lookup timed out after 10s. Check your connection or RLS policies." },
+            }),
+          10000,
+        ),
+      );
+
+      const { data, error } = (await Promise.race([queryPromise, timeoutPromise])) as {
+        data: VendorRow | null;
+        error: { message: string } | null;
+      };
       if (!mounted) return;
       if (error) {
+        setLoadError(error.message);
         toast.error(error.message);
       }
       if (data) {
-        setVendor(data as VendorRow);
+        setVendor(data);
         form.reset({
           store_name: data.store_name ?? "",
           slug: data.slug ?? "",
@@ -110,6 +133,7 @@ function VendorProfilePage() {
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     setSubmitting(true);
+    setSaveError(null);
     try {
       const payload = {
         owner_id: user.id,
@@ -130,14 +154,13 @@ function VendorProfilePage() {
         if (error) throw error;
         toast.success("Vendor profile updated");
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("vendors")
           .insert(payload)
           .select("id")
           .single();
         if (error) throw error;
         toast.success("Vendor profile created — you can now list products");
-        // Ensure the signed-in user has the 'vendor' role so RLS allows product inserts.
         await supabase
           .from("user_roles")
           .insert({ user_id: user.id, role: "vendor" })
@@ -151,7 +174,15 @@ function VendorProfilePage() {
         return;
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to save";
+      const e = err as { message?: string; code?: string; details?: string; hint?: string };
+      const parts = [
+        e.message,
+        e.code ? `code: ${e.code}` : null,
+        e.details ? `details: ${e.details}` : null,
+        e.hint ? `hint: ${e.hint}` : null,
+      ].filter(Boolean);
+      const msg = parts.join(" — ") || "Failed to save";
+      setSaveError(msg);
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -178,11 +209,25 @@ function VendorProfilePage() {
       }
     >
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
+          <p className="text-xs">Loading vendor profile…</p>
         </div>
+      ) : loadError ? (
+        <Alert variant="destructive" className="max-w-3xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Could not load vendor profile</AlertTitle>
+          <AlertDescription className="break-words">{loadError}</AlertDescription>
+        </Alert>
       ) : (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-3xl">
+          {saveError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Save failed</AlertTitle>
+              <AlertDescription className="break-words">{saveError}</AlertDescription>
+            </Alert>
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Store details</CardTitle>

@@ -209,11 +209,25 @@ function VendorProfilePage() {
       }
     >
       {loading ? (
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
+          <p className="text-xs">Loading vendor profile…</p>
         </div>
+      ) : loadError ? (
+        <Alert variant="destructive" className="max-w-3xl">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Could not load vendor profile</AlertTitle>
+          <AlertDescription className="break-words">{loadError}</AlertDescription>
+        </Alert>
       ) : (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-3xl">
+          {saveError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Save failed</AlertTitle>
+              <AlertDescription className="break-words">{saveError}</AlertDescription>
+            </Alert>
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Store details</CardTitle>

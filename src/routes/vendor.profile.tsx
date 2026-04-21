@@ -133,6 +133,7 @@ function VendorProfilePage() {
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     setSubmitting(true);
+    setSaveError(null);
     try {
       const payload = {
         owner_id: user.id,
@@ -153,14 +154,13 @@ function VendorProfilePage() {
         if (error) throw error;
         toast.success("Vendor profile updated");
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("vendors")
           .insert(payload)
           .select("id")
           .single();
         if (error) throw error;
         toast.success("Vendor profile created — you can now list products");
-        // Ensure the signed-in user has the 'vendor' role so RLS allows product inserts.
         await supabase
           .from("user_roles")
           .insert({ user_id: user.id, role: "vendor" })
@@ -174,7 +174,15 @@ function VendorProfilePage() {
         return;
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to save";
+      const e = err as { message?: string; code?: string; details?: string; hint?: string };
+      const parts = [
+        e.message,
+        e.code ? `code: ${e.code}` : null,
+        e.details ? `details: ${e.details}` : null,
+        e.hint ? `hint: ${e.hint}` : null,
+      ].filter(Boolean);
+      const msg = parts.join(" — ") || "Failed to save";
+      setSaveError(msg);
       toast.error(msg);
     } finally {
       setSubmitting(false);

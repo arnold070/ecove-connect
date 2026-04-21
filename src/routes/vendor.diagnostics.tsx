@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { CheckCircle2, XCircle, Loader2, Circle, AlertCircle } from "lucide-react";
+import { useRef, useState } from "react";
+import { CheckCircle2, XCircle, Loader2, Circle, AlertCircle, RotateCw } from "lucide-react";
 
 import { VendorShell } from "@/components/vendor-shell";
 import { Button } from "@/components/ui/button";
@@ -17,170 +17,252 @@ export const Route = createFileRoute("/vendor/diagnostics")({
 });
 
 type StepStatus = "pending" | "running" | "ok" | "fail";
+type StepId =
+  | "auth"
+  | "vendor-lookup"
+  | "vendor-upsert"
+  | "vendor-role"
+  | "product-insert"
+  | "product-readback";
+
 interface Step {
-  id: string;
+  id: StepId;
   label: string;
   status: StepStatus;
   detail?: string;
 }
 
-const INITIAL_STEPS: Step[] = [
-  { id: "auth", label: "Verify signed-in user", status: "pending" },
-  { id: "vendor-lookup", label: "Look up existing vendor row", status: "pending" },
-  { id: "vendor-upsert", label: "Create or reuse vendor row", status: "pending" },
-  { id: "vendor-role", label: "Ensure 'vendor' role in user_roles", status: "pending" },
-  { id: "product-insert", label: "Insert test product as 'pending'", status: "pending" },
-  { id: "product-readback", label: "Read it back from /vendor/products/pending query", status: "pending" },
+const STEP_LABELS: Record<StepId, string> = {
+  auth: "Verify signed-in user",
+  "vendor-lookup": "Look up existing vendor row",
+  "vendor-upsert": "Create or reuse vendor row",
+  "vendor-role": "Ensure 'vendor' role in user_roles",
+  "product-insert": "Insert test product as 'pending'",
+  "product-readback": "Read it back from /vendor/products/pending query",
+};
+
+const STEP_ORDER: StepId[] = [
+  "auth",
+  "vendor-lookup",
+  "vendor-upsert",
+  "vendor-role",
+  "product-insert",
+  "product-readback",
 ];
+
+const initialSteps = (): Step[] =>
+  STEP_ORDER.map((id) => ({ id, label: STEP_LABELS[id], status: "pending" }));
 
 function fmtErr(e: unknown): string {
   const x = e as { message?: string; code?: string; details?: string; hint?: string };
-  return [x?.message, x?.code && `code: ${x.code}`, x?.details && `details: ${x.details}`, x?.hint && `hint: ${x.hint}`]
-    .filter(Boolean)
-    .join(" — ") || String(e);
+  return (
+    [x?.message, x?.code && `code: ${x.code}`, x?.details && `details: ${x.details}`, x?.hint && `hint: ${x.hint}`]
+      .filter(Boolean)
+      .join(" — ") || String(e)
+  );
+}
+
+interface Ctx {
+  userId: string;
+  storeName: string;
+  productTitle: string;
+  vendorId: string | null;
+  productId: string | null;
 }
 
 function VendorDiagnosticsPage() {
   const { user, loading: authLoading } = useAuth();
-  const [steps, setSteps] = useState<Step[]>(INITIAL_STEPS);
-  const [running, setRunning] = useState(false);
+  const [steps, setSteps] = useState<Step[]>(initialSteps());
+  const [running, setRunning] = useState<StepId | "all" | null>(null);
   const [storeName, setStoreName] = useState("Diagnostic Store");
   const [productTitle, setProductTitle] = useState("Diagnostic Product");
-  const [createdProductId, setCreatedProductId] = useState<string | null>(null);
+  const ctxRef = useRef<Pick<Ctx, "vendorId" | "productId">>({ vendorId: null, productId: null });
 
-  const update = (id: string, patch: Partial<Step>) =>
+  const update = (id: StepId, patch: Partial<Step>) =>
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
   const reset = () => {
-    setSteps(INITIAL_STEPS.map((s) => ({ ...s })));
-    setCreatedProductId(null);
+    setSteps(initialSteps());
+    ctxRef.current = { vendorId: null, productId: null };
   };
 
-  const run = async () => {
-    if (!user) return;
-    reset();
-    setRunning(true);
-
-    // 1. Auth
-    update("auth", { status: "running" });
-    update("auth", { status: "ok", detail: `user.id = ${user.id}` });
-
-    // 2. Vendor lookup
-    update("vendor-lookup", { status: "running" });
-    let vendorId: string | null = null;
-    try {
-      const { data, error } = await supabase
-        .from("vendors")
-        .select("id, slug, store_name")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      if (data) {
-        vendorId = data.id;
-        update("vendor-lookup", { status: "ok", detail: `Found vendor ${data.slug}` });
-      } else {
-        update("vendor-lookup", { status: "ok", detail: "No vendor row yet" });
+  // Each runner returns true on success, false on failure (and updates step state).
+  const runners: Record<StepId, (ctx: Ctx) => Promise<boolean>> = {
+    auth: async (ctx) => {
+      update("auth", { status: "running" });
+      if (!ctx.userId) {
+        update("auth", { status: "fail", detail: "No signed-in user" });
+        return false;
       }
-    } catch (e) {
-      update("vendor-lookup", { status: "fail", detail: fmtErr(e) });
-      setRunning(false);
-      return;
-    }
-
-    // 3. Vendor upsert
-    update("vendor-upsert", { status: "running" });
-    if (!vendorId) {
+      update("auth", { status: "ok", detail: `user.id = ${ctx.userId}` });
+      return true;
+    },
+    "vendor-lookup": async (ctx) => {
+      update("vendor-lookup", { status: "running" });
       try {
-        const slug = `${slugify(storeName)}-${user.id.slice(0, 6)}`;
         const { data, error } = await supabase
           .from("vendors")
-          .insert({ owner_id: user.id, store_name: storeName, slug })
+          .select("id, slug, store_name")
+          .eq("owner_id", ctx.userId)
+          .maybeSingle();
+        if (error) throw error;
+        if (data) {
+          ctxRef.current.vendorId = data.id;
+          update("vendor-lookup", { status: "ok", detail: `Found vendor ${data.slug}` });
+        } else {
+          ctxRef.current.vendorId = null;
+          update("vendor-lookup", { status: "ok", detail: "No vendor row yet" });
+        }
+        return true;
+      } catch (e) {
+        update("vendor-lookup", { status: "fail", detail: fmtErr(e) });
+        return false;
+      }
+    },
+    "vendor-upsert": async (ctx) => {
+      update("vendor-upsert", { status: "running" });
+      if (ctxRef.current.vendorId) {
+        update("vendor-upsert", { status: "ok", detail: "Reused existing vendor" });
+        return true;
+      }
+      try {
+        const slug = `${slugify(ctx.storeName)}-${ctx.userId.slice(0, 6)}`;
+        const { data, error } = await supabase
+          .from("vendors")
+          .insert({ owner_id: ctx.userId, store_name: ctx.storeName, slug })
           .select("id")
           .single();
         if (error) throw error;
-        vendorId = data.id;
-        update("vendor-upsert", { status: "ok", detail: `Created vendor ${vendorId}` });
+        ctxRef.current.vendorId = data.id;
+        update("vendor-upsert", { status: "ok", detail: `Created vendor ${data.id}` });
+        return true;
       } catch (e) {
         update("vendor-upsert", { status: "fail", detail: fmtErr(e) });
-        setRunning(false);
-        return;
+        return false;
       }
-    } else {
-      update("vendor-upsert", { status: "ok", detail: "Reused existing vendor" });
-    }
-
-    // 4. Vendor role
-    update("vendor-role", { status: "running" });
-    try {
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: user.id, role: "vendor" });
-      if (error && !/duplicate|unique/i.test(error.message)) throw error;
-      update("vendor-role", { status: "ok", detail: error ? "Already had role" : "Inserted vendor role" });
-    } catch (e) {
-      update("vendor-role", { status: "fail", detail: fmtErr(e) });
-      setRunning(false);
-      return;
-    }
-
-    // 5. Product insert (matches columns used by /vendor/products/new)
-    update("product-insert", { status: "running" });
-    let productId: string | null = null;
-    try {
-      const stamp = Date.now();
-      const title = `${productTitle} ${stamp}`;
-      const slug = `${slugify(title)}-${user.id.slice(0, 6)}`;
-      const { data, error } = await supabase
-        .from("products")
-        .insert({
-          vendor_id: vendorId,
-          title,
-          slug,
-          description: "Auto-generated by diagnostics",
-          price_kobo: 999900, // ₦9,999.00 in kobo
-          stock: 1,
-          status: "pending",
-        })
-        .select("id, status, slug, price_kobo")
-        .single();
-      if (error) throw error;
-      productId = data.id;
-      setCreatedProductId(productId);
-      update("product-insert", {
-        status: "ok",
-        detail: `Inserted product ${productId} (status=${data.status}, slug=${data.slug}, price_kobo=${data.price_kobo})`,
-      });
-    } catch (e) {
-      update("product-insert", { status: "fail", detail: fmtErr(e) });
-      setRunning(false);
-      return;
-    }
-
-    // 6. Read back from pending list
-    update("product-readback", { status: "running" });
-    try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id")
-        .eq("vendor_id", vendorId)
-        .eq("status", "pending")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      const found = (data ?? []).some((p: { id: string }) => p.id === productId);
-      if (!found) throw new Error("Product not found in pending list (RLS hides it from vendor?)");
-      update("product-readback", {
-        status: "ok",
-        detail: `Pending list returned ${data?.length ?? 0} rows including the new one`,
-      });
-    } catch (e) {
-      update("product-readback", { status: "fail", detail: fmtErr(e) });
-      setRunning(false);
-      return;
-    }
-
-    setRunning(false);
+    },
+    "vendor-role": async (ctx) => {
+      update("vendor-role", { status: "running" });
+      try {
+        const { error } = await supabase
+          .from("user_roles")
+          .insert({ user_id: ctx.userId, role: "vendor" });
+        if (error && !/duplicate|unique/i.test(error.message)) throw error;
+        update("vendor-role", {
+          status: "ok",
+          detail: error ? "Already had role" : "Inserted vendor role",
+        });
+        return true;
+      } catch (e) {
+        update("vendor-role", { status: "fail", detail: fmtErr(e) });
+        return false;
+      }
+    },
+    "product-insert": async (ctx) => {
+      update("product-insert", { status: "running" });
+      const vendorId = ctxRef.current.vendorId;
+      if (!vendorId) {
+        update("product-insert", {
+          status: "fail",
+          detail: "No vendorId in context — run 'vendor-lookup' / 'vendor-upsert' first",
+        });
+        return false;
+      }
+      try {
+        const stamp = Date.now();
+        const title = `${ctx.productTitle} ${stamp}`;
+        const slug = `${slugify(title)}-${ctx.userId.slice(0, 6)}`;
+        const { data, error } = await supabase
+          .from("products")
+          .insert({
+            vendor_id: vendorId,
+            title,
+            slug,
+            description: "Auto-generated by diagnostics",
+            price_kobo: 999900,
+            stock: 1,
+            status: "pending",
+          })
+          .select("id, status, slug, price_kobo")
+          .single();
+        if (error) throw error;
+        ctxRef.current.productId = data.id;
+        update("product-insert", {
+          status: "ok",
+          detail: `Inserted product ${data.id} (status=${data.status}, slug=${data.slug}, price_kobo=${data.price_kobo})`,
+        });
+        return true;
+      } catch (e) {
+        update("product-insert", { status: "fail", detail: fmtErr(e) });
+        return false;
+      }
+    },
+    "product-readback": async () => {
+      update("product-readback", { status: "running" });
+      const vendorId = ctxRef.current.vendorId;
+      const productId = ctxRef.current.productId;
+      if (!vendorId || !productId) {
+        update("product-readback", {
+          status: "fail",
+          detail: "Missing vendorId or productId — run earlier steps first",
+        });
+        return false;
+      }
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("id")
+          .eq("vendor_id", vendorId)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (error) throw error;
+        const found = (data ?? []).some((p: { id: string }) => p.id === productId);
+        if (!found) throw new Error("Product not found in pending list (RLS hides it from vendor?)");
+        update("product-readback", {
+          status: "ok",
+          detail: `Pending list returned ${data?.length ?? 0} rows including the new one`,
+        });
+        return true;
+      } catch (e) {
+        update("product-readback", { status: "fail", detail: fmtErr(e) });
+        return false;
+      }
+    },
   };
+
+  const buildCtx = (): Ctx | null => {
+    if (!user) return null;
+    return {
+      userId: user.id,
+      storeName,
+      productTitle,
+      vendorId: ctxRef.current.vendorId,
+      productId: ctxRef.current.productId,
+    };
+  };
+
+  const runAll = async () => {
+    const ctx = buildCtx();
+    if (!ctx) return;
+    reset();
+    setRunning("all");
+    for (const id of STEP_ORDER) {
+      const ok = await runners[id]({ ...ctx, vendorId: ctxRef.current.vendorId, productId: ctxRef.current.productId });
+      if (!ok) break;
+    }
+    setRunning(null);
+  };
+
+  const runOne = async (id: StepId) => {
+    const ctx = buildCtx();
+    if (!ctx) return;
+    setRunning(id);
+    await runners[id]({ ...ctx, vendorId: ctxRef.current.vendorId, productId: ctxRef.current.productId });
+    setRunning(null);
+  };
+
+  const productCreated = !!ctxRef.current.productId;
 
   return (
     <VendorShell
@@ -210,18 +292,14 @@ function VendorDiagnosticsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="product_title">Product title</Label>
-              <Input
-                id="product_title"
-                value={productTitle}
-                onChange={(e) => setProductTitle(e.target.value)}
-              />
+              <Input id="product_title" value={productTitle} onChange={(e) => setProductTitle(e.target.value)} />
             </div>
             <div className="flex gap-3">
-              <Button onClick={run} disabled={running || !user}>
-                {running && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button onClick={runAll} disabled={!!running || !user}>
+                {running === "all" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Run diagnostics
               </Button>
-              <Button variant="outline" onClick={reset} disabled={running}>
+              <Button variant="outline" onClick={reset} disabled={!!running}>
                 Reset
               </Button>
             </div>
@@ -231,40 +309,62 @@ function VendorDiagnosticsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Steps</CardTitle>
-            <CardDescription>Each step uses the same code path as the real UI</CardDescription>
+            <CardDescription>Retry only the failing step without restarting the whole flow</CardDescription>
           </CardHeader>
           <CardContent>
             <ol className="space-y-3">
-              {steps.map((s, i) => (
-                <li key={s.id} className="flex gap-3 items-start">
-                  <div className="pt-0.5">
-                    {s.status === "ok" && <CheckCircle2 className="h-5 w-5 text-primary" />}
-                    {s.status === "fail" && <XCircle className="h-5 w-5 text-destructive" />}
-                    {s.status === "running" && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
-                    {s.status === "pending" && <Circle className="h-5 w-5 text-muted-foreground" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">
-                      {i + 1}. {s.label}
-                    </p>
-                    {s.detail && (
-                      <p
-                        className={
-                          "text-xs mt-1 break-words " +
-                          (s.status === "fail" ? "text-destructive" : "text-muted-foreground")
-                        }
-                      >
-                        {s.detail}
-                      </p>
-                    )}
-                  </div>
-                </li>
-              ))}
+              {steps.map((s, i) => {
+                const isRunningThis = running === s.id;
+                return (
+                  <li key={s.id} className="flex gap-3 items-start">
+                    <div className="pt-0.5">
+                      {s.status === "ok" && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                      {s.status === "fail" && <XCircle className="h-5 w-5 text-destructive" />}
+                      {(s.status === "running" || isRunningThis) && (
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      )}
+                      {s.status === "pending" && !isRunningThis && (
+                        <Circle className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="font-medium text-sm">
+                          {i + 1}. {s.label}
+                        </p>
+                        {s.status === "fail" && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void runOne(s.id)}
+                            disabled={!!running || !user}
+                            className="h-7 px-2 text-xs"
+                          >
+                            <RotateCw className="mr-1 h-3 w-3" />
+                            Retry
+                          </Button>
+                        )}
+                      </div>
+                      {s.detail && (
+                        <p
+                          className={
+                            "text-xs mt-1 break-words " +
+                            (s.status === "fail" ? "text-destructive" : "text-muted-foreground")
+                          }
+                        >
+                          {s.detail}
+                        </p>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ol>
           </CardContent>
         </Card>
 
-        {createdProductId && (
+        {productCreated && (
           <Alert>
             <CheckCircle2 className="h-4 w-4" />
             <AlertTitle>Product created</AlertTitle>

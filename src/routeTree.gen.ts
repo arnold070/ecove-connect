@@ -23,6 +23,7 @@ import { Route as VendorPoliciesRouteImport } from './routes/vendor.policies'
 import { Route as VendorOrdersRouteImport } from './routes/vendor.orders'
 import { Route as VendorInventoryRouteImport } from './routes/vendor.inventory'
 import { Route as VendorEarningsRouteImport } from './routes/vendor.earnings'
+import { Route as VendorDiagnosticsRouteImport } from './routes/vendor.diagnostics'
 import { Route as VendorProductsIndexRouteImport } from './routes/vendor.products.index'
 import { Route as VendorProductsPendingRouteImport } from './routes/vendor.products.pending'
 import { Route as VendorProductsNewRouteImport } from './routes/vendor.products.new'
@@ -97,6 +98,11 @@ const VendorEarningsRoute = VendorEarningsRouteImport.update({
   path: '/earnings',
   getParentRoute: () => VendorRoute,
 } as any)
+const VendorDiagnosticsRoute = VendorDiagnosticsRouteImport.update({
+  id: '/diagnostics',
+  path: '/diagnostics',
+  getParentRoute: () => VendorRoute,
+} as any)
 const VendorProductsIndexRoute = VendorProductsIndexRouteImport.update({
   id: '/products/',
   path: '/products/',
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/vendor': typeof VendorRouteWithChildren
+  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/orders': typeof VendorOrdersRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/orders': typeof VendorOrdersRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/vendor': typeof VendorRouteWithChildren
+  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/orders': typeof VendorOrdersRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/vendor'
+    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/orders'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/signup'
+    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/orders'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/vendor'
+    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/orders'
@@ -336,6 +348,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorEarningsRouteImport
       parentRoute: typeof VendorRoute
     }
+    '/vendor/diagnostics': {
+      id: '/vendor/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/vendor/diagnostics'
+      preLoaderRoute: typeof VendorDiagnosticsRouteImport
+      parentRoute: typeof VendorRoute
+    }
     '/vendor/products/': {
       id: '/vendor/products/'
       path: '/products'
@@ -361,6 +380,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface VendorRouteChildren {
+  VendorDiagnosticsRoute: typeof VendorDiagnosticsRoute
   VendorEarningsRoute: typeof VendorEarningsRoute
   VendorInventoryRoute: typeof VendorInventoryRoute
   VendorOrdersRoute: typeof VendorOrdersRoute
@@ -377,6 +397,7 @@ interface VendorRouteChildren {
 }
 
 const VendorRouteChildren: VendorRouteChildren = {
+  VendorDiagnosticsRoute: VendorDiagnosticsRoute,
   VendorEarningsRoute: VendorEarningsRoute,
   VendorInventoryRoute: VendorInventoryRoute,
   VendorOrdersRoute: VendorOrdersRoute,

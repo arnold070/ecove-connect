@@ -264,6 +264,42 @@ function VendorDiagnosticsPage() {
 
   const productCreated = !!ctxRef.current.productId;
 
+  const exportLog = () => {
+    const log = {
+      exportedAt: new Date().toISOString(),
+      user: user ? { id: user.id, email: user.email } : null,
+      inputs: { storeName, productTitle },
+      context: {
+        vendorId: ctxRef.current.vendorId,
+        productId: ctxRef.current.productId,
+      },
+      steps: steps.map((s) => ({
+        id: s.id,
+        label: s.label,
+        status: s.status,
+        detail: s.detail ?? null,
+      })),
+      summary: {
+        total: steps.length,
+        ok: steps.filter((s) => s.status === "ok").length,
+        failed: steps.filter((s) => s.status === "fail").length,
+        pending: steps.filter((s) => s.status === "pending").length,
+      },
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+    };
+    const blob = new Blob([JSON.stringify(log, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vendor-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const hasResults = steps.some((s) => s.status !== "pending");
+
   return (
     <VendorShell
       title="End-to-end diagnostics"

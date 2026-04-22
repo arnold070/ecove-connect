@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { CheckCircle2, XCircle, Loader2, Circle, AlertCircle, RotateCw } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Circle, AlertCircle, RotateCw, Download } from "lucide-react";
 
 import { VendorShell } from "@/components/vendor-shell";
 import { Button } from "@/components/ui/button";
@@ -264,6 +264,42 @@ function VendorDiagnosticsPage() {
 
   const productCreated = !!ctxRef.current.productId;
 
+  const exportLog = () => {
+    const log = {
+      exportedAt: new Date().toISOString(),
+      user: user ? { id: user.id, email: user.email } : null,
+      inputs: { storeName, productTitle },
+      context: {
+        vendorId: ctxRef.current.vendorId,
+        productId: ctxRef.current.productId,
+      },
+      steps: steps.map((s) => ({
+        id: s.id,
+        label: s.label,
+        status: s.status,
+        detail: s.detail ?? null,
+      })),
+      summary: {
+        total: steps.length,
+        ok: steps.filter((s) => s.status === "ok").length,
+        failed: steps.filter((s) => s.status === "fail").length,
+        pending: steps.filter((s) => s.status === "pending").length,
+      },
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+    };
+    const blob = new Blob([JSON.stringify(log, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `vendor-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const hasResults = steps.some((s) => s.status !== "pending");
+
   return (
     <VendorShell
       title="End-to-end diagnostics"
@@ -301,6 +337,10 @@ function VendorDiagnosticsPage() {
               </Button>
               <Button variant="outline" onClick={reset} disabled={!!running}>
                 Reset
+              </Button>
+              <Button variant="outline" onClick={exportLog} disabled={!hasResults}>
+                <Download className="mr-2 h-4 w-4" />
+                Export log (JSON)
               </Button>
             </div>
           </CardContent>

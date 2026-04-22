@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { CheckCircle2, XCircle, Loader2, Circle, AlertCircle, RotateCw } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Circle, AlertCircle, RotateCw, Download } from "lucide-react";
 
 import { VendorShell } from "@/components/vendor-shell";
 import { Button } from "@/components/ui/button";

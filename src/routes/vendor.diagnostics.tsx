@@ -338,6 +338,10 @@ function VendorDiagnosticsPage() {
               <Button variant="outline" onClick={reset} disabled={!!running}>
                 Reset
               </Button>
+              <Button variant="outline" onClick={exportLog} disabled={!hasResults}>
+                <Download className="mr-2 h-4 w-4" />
+                Export log (JSON)
+              </Button>
             </div>
           </CardContent>
         </Card>

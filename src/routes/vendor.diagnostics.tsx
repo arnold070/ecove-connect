@@ -230,11 +230,11 @@ function VendorDiagnosticsPage() {
       }
     },
     "vendor-role": async (ctx) => {
-      update("vendor-role", { status: "running" });
+      update("vendor-role", { status: "running", exchanges: [] });
       try {
-        const { error } = await supabase
-          .from("user_roles")
-          .insert({ user_id: ctx.userId, role: "vendor" });
+        const { error } = await withCapture("vendor-role", () =>
+          supabase.from("user_roles").insert({ user_id: ctx.userId, role: "vendor" }),
+        );
         if (error && !/duplicate|unique/i.test(error.message)) throw error;
         update("vendor-role", {
           status: "ok",

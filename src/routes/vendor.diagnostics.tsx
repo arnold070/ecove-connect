@@ -182,13 +182,15 @@ function VendorDiagnosticsPage() {
       return true;
     },
     "vendor-lookup": async (ctx) => {
-      update("vendor-lookup", { status: "running" });
+      update("vendor-lookup", { status: "running", exchanges: [] });
       try {
-        const { data, error } = await supabase
-          .from("vendors")
-          .select("id, slug, store_name")
-          .eq("owner_id", ctx.userId)
-          .maybeSingle();
+        const { data, error } = await withCapture("vendor-lookup", () =>
+          supabase
+            .from("vendors")
+            .select("id, slug, store_name")
+            .eq("owner_id", ctx.userId)
+            .maybeSingle(),
+        );
         if (error) throw error;
         if (data) {
           ctxRef.current.vendorId = data.id;

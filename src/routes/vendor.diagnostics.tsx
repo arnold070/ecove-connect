@@ -214,7 +214,6 @@ function VendorDiagnosticsPage() {
         let responseBody: string | null = null;
         try {
           responseBody = await res.clone().text();
-          if (responseBody.length > 8000) responseBody = responseBody.slice(0, 8000) + "…[truncated]";
         } catch {
           responseBody = "[unreadable body]";
         }

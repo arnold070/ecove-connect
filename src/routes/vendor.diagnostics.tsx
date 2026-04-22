@@ -500,6 +500,14 @@ function VendorDiagnosticsPage() {
                 <Download className="mr-2 h-4 w-4" />
                 Export log (JSON)
               </Button>
+              <Button variant="outline" onClick={exportCsv} disabled={!hasResults}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Export CSV
+              </Button>
+              <Button variant="outline" onClick={copySummary} disabled={!hasResults}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy summary
+              </Button>
             </div>
           </CardContent>
         </Card>

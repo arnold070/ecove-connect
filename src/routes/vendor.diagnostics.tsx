@@ -117,7 +117,7 @@ function VendorDiagnosticsPage() {
   };
 
   // Wrap window.fetch during a step so we can capture HTTP exchanges.
-  const withCapture = async <T,>(stepId: StepId, fn: () => Promise<T>): Promise<T> => {
+  const withCapture = async <T,>(stepId: StepId, fn: () => PromiseLike<T>): Promise<T> => {
     const exchanges: HttpExchange[] = [];
     const original = window.fetch.bind(window);
     window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {

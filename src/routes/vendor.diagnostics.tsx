@@ -370,6 +370,17 @@ function VendorDiagnosticsPage() {
         label: s.label,
         status: s.status,
         detail: s.detail ?? null,
+        // Include full HTTP exchanges for failed steps; keep ok-step exchanges as a compact summary.
+        exchanges:
+          s.status === "fail"
+            ? s.exchanges ?? []
+            : (s.exchanges ?? []).map((x) => ({
+                url: x.url,
+                method: x.method,
+                status: x.status,
+                statusText: x.statusText,
+                durationMs: x.durationMs,
+              })),
       })),
       summary: {
         total: steps.length,
@@ -380,14 +391,69 @@ function VendorDiagnosticsPage() {
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : null,
     };
     const blob = new Blob([JSON.stringify(log, null, 2)], { type: "application/json" });
+    triggerDownload(blob, `vendor-diagnostics-${stamp()}.json`);
+  };
+
+  const stamp = () => new Date().toISOString().replace(/[:.]/g, "-");
+
+  const triggerDownload = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `vendor-diagnostics-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const exportCsv = () => {
+    const escape = (v: unknown) => {
+      const s = v == null ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const rows = [
+      ["#", "id", "label", "status", "detail", "http_calls", "last_status_code"],
+      ...steps.map((s, i) => {
+        const ex = s.exchanges ?? [];
+        const last = ex[ex.length - 1];
+        return [
+          i + 1,
+          s.id,
+          s.label,
+          s.status,
+          s.detail ?? "",
+          ex.length,
+          last ? `${last.status} ${last.statusText}` : "",
+        ];
+      }),
+    ];
+    const csv = rows.map((r) => r.map(escape).join(",")).join("\n");
+    triggerDownload(new Blob([csv], { type: "text/csv" }), `vendor-diagnostics-${stamp()}.csv`);
+  };
+
+  const copySummary = async () => {
+    const lines: string[] = [];
+    lines.push(`Vendor diagnostics — ${new Date().toLocaleString()}`);
+    if (user) lines.push(`User: ${user.email ?? user.id}`);
+    lines.push(`Vendor: ${ctxRef.current.vendorId ?? "—"}  Product: ${ctxRef.current.productId ?? "—"}`);
+    lines.push("");
+    steps.forEach((s, i) => {
+      const icon = s.status === "ok" ? "✅" : s.status === "fail" ? "❌" : s.status === "running" ? "⏳" : "⏸";
+      lines.push(`${icon} ${i + 1}. ${s.label} — ${s.status}`);
+      if (s.detail) lines.push(`    ${s.detail}`);
+      if (s.status === "fail") {
+        for (const x of s.exchanges ?? []) {
+          lines.push(`    HTTP ${x.method} ${x.url} → ${x.status} ${x.statusText} (${x.durationMs}ms)`);
+        }
+      }
+    });
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast.success("Diagnostics summary copied to clipboard");
+    } catch {
+      toast.error("Could not access clipboard");
+    }
   };
 
   const hasResults = steps.some((s) => s.status !== "pending");

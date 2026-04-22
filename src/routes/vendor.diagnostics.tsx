@@ -488,7 +488,7 @@ function VendorDiagnosticsPage() {
               <Label htmlFor="product_title">Product title</Label>
               <Input id="product_title" value={productTitle} onChange={(e) => setProductTitle(e.target.value)} />
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button onClick={runAll} disabled={!!running || !user}>
                 {running === "all" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Run diagnostics

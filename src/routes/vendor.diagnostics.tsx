@@ -183,10 +183,9 @@ function VendorDiagnosticsPage() {
   const headersToObject = (h: HeadersInit | undefined): Record<string, string> => {
     const out: Record<string, string> = {};
     if (!h) return out;
-    const redact = (k: string, v: string) => (/authorization|apikey|token/i.test(k) ? "[redacted]" : v);
-    if (h instanceof Headers) h.forEach((v, k) => (out[k] = redact(k, v)));
-    else if (Array.isArray(h)) for (const [k, v] of h) out[k] = redact(k, v);
-    else for (const [k, v] of Object.entries(h)) out[k] = redact(k, String(v));
+    if (h instanceof Headers) h.forEach((v, k) => (out[k] = v));
+    else if (Array.isArray(h)) for (const [k, v] of h) out[k] = v;
+    else for (const [k, v] of Object.entries(h)) out[k] = String(v);
     return out;
   };
 

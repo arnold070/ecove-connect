@@ -517,8 +517,12 @@ function VendorDiagnosticsPage() {
   const copySummary = async () => {
     const lines: string[] = [];
     lines.push(`Vendor diagnostics — ${new Date().toLocaleString()}`);
-    if (user) lines.push(`User: ${user.email ?? user.id}`);
+    if (user) {
+      const who = shouldRedactKey("email") ? user.id : (user.email ?? user.id);
+      lines.push(`User: ${who}`);
+    }
     lines.push(`Vendor: ${ctxRef.current.vendorId ?? "—"}  Product: ${ctxRef.current.productId ?? "—"}`);
+    lines.push(`Redacted keys: ${redactKeyList.join(", ") || "(none)"}`);
     lines.push("");
     steps.forEach((s, i) => {
       const icon = s.status === "ok" ? "✅" : s.status === "fail" ? "❌" : s.status === "running" ? "⏳" : "⏸";

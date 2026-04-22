@@ -435,9 +435,13 @@ function VendorDiagnosticsPage() {
   const productCreated = !!ctxRef.current.productId;
 
   const exportLog = () => {
+    const userRedacted = user
+      ? { id: user.id, email: shouldRedactKey("email") ? "[redacted]" : user.email }
+      : null;
     const log = {
       exportedAt: new Date().toISOString(),
-      user: user ? { id: user.id, email: user.email } : null,
+      redaction: { keys: redactKeyList, truncationLimit },
+      user: userRedacted,
       inputs: { storeName, productTitle },
       context: {
         vendorId: ctxRef.current.vendorId,
@@ -448,10 +452,10 @@ function VendorDiagnosticsPage() {
         label: s.label,
         status: s.status,
         detail: s.detail ?? null,
-        // Include full HTTP exchanges for failed steps; keep ok-step exchanges as a compact summary.
+        // Full sanitized exchanges for failed steps; compact metadata for ok steps.
         exchanges:
           s.status === "fail"
-            ? s.exchanges ?? []
+            ? (s.exchanges ?? []).map(sanitizeExchange)
             : (s.exchanges ?? []).map((x) => ({
                 url: x.url,
                 method: x.method,

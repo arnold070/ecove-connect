@@ -26,11 +26,24 @@ type StepId =
   | "product-insert"
   | "product-readback";
 
+interface HttpExchange {
+  url: string;
+  method: string;
+  status: number;
+  statusText: string;
+  durationMs: number;
+  requestHeaders: Record<string, string>;
+  requestBody: string | null;
+  responseHeaders: Record<string, string>;
+  responseBody: string | null;
+}
+
 interface Step {
   id: StepId;
   label: string;
   status: StepStatus;
   detail?: string;
+  exchanges?: HttpExchange[];
 }
 
 const STEP_LABELS: Record<StepId, string> = {

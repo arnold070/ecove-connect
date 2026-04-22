@@ -600,58 +600,203 @@ function VendorDiagnosticsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Steps</CardTitle>
-            <CardDescription>Retry only the failing step without restarting the whole flow</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-4 w-4" /> Privacy & redaction
+            </CardTitle>
+            <CardDescription>
+              Comma-separated keys (case-insensitive substring match) to redact from headers, JSON bodies,
+              and clipboard/exported logs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="redact_keys">Redacted keys</Label>
+              <Input
+                id="redact_keys"
+                value={redactKeysInput}
+                onChange={(e) => setRedactKeysInput(e.target.value)}
+                placeholder={DEFAULT_REDACT_KEYS}
+              />
+              <p className="text-xs text-muted-foreground">
+                Active: {redactKeyList.join(", ") || "(none)"}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="trunc_limit">Body truncation limit (characters)</Label>
+              <Input
+                id="trunc_limit"
+                type="number"
+                min={500}
+                max={200000}
+                step={500}
+                value={truncationLimit}
+                onChange={(e) => setTruncationLimit(Math.max(500, Number(e.target.value) || 8000))}
+                className="max-w-[200px]"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div>
+                <CardTitle>Steps</CardTitle>
+                <CardDescription>Retry only the failing step without restarting the whole flow</CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Label htmlFor="only_failed" className="text-sm font-normal">
+                  Only failed
+                </Label>
+                <Switch
+                  id="only_failed"
+                  checked={showOnlyFailed}
+                  onCheckedChange={setShowOnlyFailed}
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <ol className="space-y-3">
-              {steps.map((s, i) => {
-                const isRunningThis = running === s.id;
-                return (
-                  <li key={s.id} className="flex gap-3 items-start">
-                    <div className="pt-0.5">
-                      {s.status === "ok" && <CheckCircle2 className="h-5 w-5 text-primary" />}
-                      {s.status === "fail" && <XCircle className="h-5 w-5 text-destructive" />}
-                      {(s.status === "running" || isRunningThis) && (
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                      )}
-                      {s.status === "pending" && !isRunningThis && (
-                        <Circle className="h-5 w-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="font-medium text-sm">
-                          {i + 1}. {s.label}
-                        </p>
-                        {s.status === "fail" && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void runOne(s.id)}
-                            disabled={!!running || !user}
-                            className="h-7 px-2 text-xs"
-                          >
-                            <RotateCw className="mr-1 h-3 w-3" />
-                            Retry
-                          </Button>
+              {steps
+                .map((s, i) => ({ s, i }))
+                .filter(({ s }) => (showOnlyFailed ? s.status === "fail" : true))
+                .map(({ s, i }) => {
+                  const isRunningThis = running === s.id;
+                  const exchanges = s.exchanges ?? [];
+                  const hasDetails = exchanges.length > 0;
+                  const isOpen = expanded.has(s.id);
+                  return (
+                    <li key={s.id} className="flex gap-3 items-start">
+                      <div className="pt-0.5">
+                        {s.status === "ok" && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                        {s.status === "fail" && <XCircle className="h-5 w-5 text-destructive" />}
+                        {(s.status === "running" || isRunningThis) && (
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        )}
+                        {s.status === "pending" && !isRunningThis && (
+                          <Circle className="h-5 w-5 text-muted-foreground" />
                         )}
                       </div>
-                      {s.detail && (
-                        <p
-                          className={
-                            "text-xs mt-1 break-words " +
-                            (s.status === "fail" ? "text-destructive" : "text-muted-foreground")
-                          }
-                        >
-                          {s.detail}
-                        </p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-medium text-sm">
+                            {i + 1}. {s.label}
+                          </p>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {hasDetails && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => toggleExpanded(s.id)}
+                                className="h-7 px-2 text-xs"
+                              >
+                                {isOpen ? (
+                                  <ChevronDown className="mr-1 h-3 w-3" />
+                                ) : (
+                                  <ChevronRight className="mr-1 h-3 w-3" />
+                                )}
+                                {exchanges.length} HTTP {exchanges.length === 1 ? "call" : "calls"}
+                              </Button>
+                            )}
+                            {s.status === "fail" && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void runOne(s.id)}
+                                disabled={!!running || !user}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <RotateCw className="mr-1 h-3 w-3" />
+                                Retry
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        {s.detail && (
+                          <p
+                            className={
+                              "text-xs mt-1 break-words " +
+                              (s.status === "fail" ? "text-destructive" : "text-muted-foreground")
+                            }
+                          >
+                            {s.detail}
+                          </p>
+                        )}
+                        {hasDetails && (
+                          <Collapsible open={isOpen} onOpenChange={() => toggleExpanded(s.id)}>
+                            <CollapsibleTrigger className="sr-only">toggle</CollapsibleTrigger>
+                            <CollapsibleContent className="mt-2 space-y-3">
+                              {exchanges.map((raw, idx) => {
+                                const x = sanitizeExchange(raw);
+                                const codeClass =
+                                  x.status >= 400 || x.status === 0
+                                    ? "text-destructive"
+                                    : "text-muted-foreground";
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="rounded-md border bg-muted/30 p-3 text-xs space-y-2 overflow-hidden"
+                                  >
+                                    <div className="flex flex-wrap items-center gap-2 font-mono">
+                                      <span className="font-semibold">{x.method}</span>
+                                      <span className="break-all">{x.url}</span>
+                                      <span className={codeClass}>
+                                        → {x.status} {x.statusText} ({x.durationMs}ms)
+                                      </span>
+                                    </div>
+                                    <details>
+                                      <summary className="cursor-pointer text-muted-foreground">
+                                        Request headers
+                                      </summary>
+                                      <pre className="mt-1 whitespace-pre-wrap break-all bg-background rounded p-2 text-[11px]">
+                                        {JSON.stringify(x.requestHeaders, null, 2)}
+                                      </pre>
+                                    </details>
+                                    {x.requestBody && (
+                                      <details>
+                                        <summary className="cursor-pointer text-muted-foreground">
+                                          Request body
+                                        </summary>
+                                        <pre className="mt-1 whitespace-pre-wrap break-all bg-background rounded p-2 text-[11px]">
+                                          {x.requestBody}
+                                        </pre>
+                                      </details>
+                                    )}
+                                    <details open={x.status >= 400}>
+                                      <summary className="cursor-pointer text-muted-foreground">
+                                        Response headers
+                                      </summary>
+                                      <pre className="mt-1 whitespace-pre-wrap break-all bg-background rounded p-2 text-[11px]">
+                                        {JSON.stringify(x.responseHeaders, null, 2)}
+                                      </pre>
+                                    </details>
+                                    {x.responseBody && (
+                                      <details open={x.status >= 400}>
+                                        <summary className="cursor-pointer text-muted-foreground">
+                                          Response body
+                                        </summary>
+                                        <pre className="mt-1 whitespace-pre-wrap break-all bg-background rounded p-2 text-[11px]">
+                                          {x.responseBody}
+                                        </pre>
+                                      </details>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </CollapsibleContent>
+                          </Collapsible>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              {showOnlyFailed && !steps.some((s) => s.status === "fail") && (
+                <li className="text-sm text-muted-foreground">No failed steps to show.</li>
+              )}
             </ol>
           </CardContent>
         </Card>

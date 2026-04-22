@@ -288,7 +288,7 @@ function VendorDiagnosticsPage() {
       }
     },
     "product-readback": async () => {
-      update("product-readback", { status: "running" });
+      update("product-readback", { status: "running", exchanges: [] });
       const vendorId = ctxRef.current.vendorId;
       const productId = ctxRef.current.productId;
       if (!vendorId || !productId) {
@@ -299,13 +299,15 @@ function VendorDiagnosticsPage() {
         return false;
       }
       try {
-        const { data, error } = await supabase
-          .from("products")
-          .select("id")
-          .eq("vendor_id", vendorId)
-          .eq("status", "pending")
-          .order("created_at", { ascending: false })
-          .limit(50);
+        const { data, error } = await withCapture("product-readback", () =>
+          supabase
+            .from("products")
+            .select("id")
+            .eq("vendor_id", vendorId)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false })
+            .limit(50),
+        );
         if (error) throw error;
         const found = (data ?? []).some((p: { id: string }) => p.id === productId);
         if (!found) throw new Error("Product not found in pending list (RLS hides it from vendor?)");

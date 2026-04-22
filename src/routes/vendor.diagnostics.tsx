@@ -206,18 +206,20 @@ function VendorDiagnosticsPage() {
       }
     },
     "vendor-upsert": async (ctx) => {
-      update("vendor-upsert", { status: "running" });
+      update("vendor-upsert", { status: "running", exchanges: [] });
       if (ctxRef.current.vendorId) {
         update("vendor-upsert", { status: "ok", detail: "Reused existing vendor" });
         return true;
       }
       try {
         const slug = `${slugify(ctx.storeName)}-${ctx.userId.slice(0, 6)}`;
-        const { data, error } = await supabase
-          .from("vendors")
-          .insert({ owner_id: ctx.userId, store_name: ctx.storeName, slug })
-          .select("id")
-          .single();
+        const { data, error } = await withCapture("vendor-upsert", () =>
+          supabase
+            .from("vendors")
+            .insert({ owner_id: ctx.userId, store_name: ctx.storeName, slug })
+            .select("id")
+            .single(),
+        );
         if (error) throw error;
         ctxRef.current.vendorId = data.id;
         update("vendor-upsert", { status: "ok", detail: `Created vendor ${data.id}` });

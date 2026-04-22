@@ -247,7 +247,7 @@ function VendorDiagnosticsPage() {
       }
     },
     "product-insert": async (ctx) => {
-      update("product-insert", { status: "running" });
+      update("product-insert", { status: "running", exchanges: [] });
       const vendorId = ctxRef.current.vendorId;
       if (!vendorId) {
         update("product-insert", {

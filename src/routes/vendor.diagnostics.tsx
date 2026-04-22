@@ -98,6 +98,80 @@ function VendorDiagnosticsPage() {
   const [productTitle, setProductTitle] = useState("Diagnostic Product");
   const ctxRef = useRef<Pick<Ctx, "vendorId" | "productId">>({ vendorId: null, productId: null });
 
+  // Inspector / privacy controls
+  const [showOnlyFailed, setShowOnlyFailed] = useState(false);
+  const [expanded, setExpanded] = useState<Set<StepId>>(new Set());
+  const DEFAULT_REDACT_KEYS = "password, authorization, email, apikey, token, cookie, set-cookie, secret";
+  const [redactKeysInput, setRedactKeysInput] = useState(DEFAULT_REDACT_KEYS);
+  const [truncationLimit, setTruncationLimit] = useState(8000);
+
+  const redactKeyList = redactKeysInput
+    .split(",")
+    .map((k) => k.trim().toLowerCase())
+    .filter(Boolean);
+
+  const shouldRedactKey = (key: string) => {
+    const k = key.toLowerCase();
+    return redactKeyList.some((needle) => k.includes(needle));
+  };
+
+  // Redact a JSON-ish body string by parsing and walking; falls back to regex for non-JSON.
+  const redactBody = (body: string | null): string | null => {
+    if (!body) return body;
+    try {
+      const parsed = JSON.parse(body);
+      const walk = (v: unknown): unknown => {
+        if (Array.isArray(v)) return v.map(walk);
+        if (v && typeof v === "object") {
+          const out: Record<string, unknown> = {};
+          for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+            out[k] = shouldRedactKey(k) ? "[redacted]" : walk(val);
+          }
+          return out;
+        }
+        return v;
+      };
+      return JSON.stringify(walk(parsed), null, 2);
+    } catch {
+      // Non-JSON: redact "key=value" / "key":"value" forms for each configured key.
+      let out = body;
+      for (const k of redactKeyList) {
+        const esc = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        out = out.replace(new RegExp(`("${esc}"\\s*:\\s*)"[^"]*"`, "gi"), `$1"[redacted]"`);
+        out = out.replace(new RegExp(`(${esc}=)[^&\\s]+`, "gi"), `$1[redacted]`);
+      }
+      return out;
+    }
+  };
+
+  const redactHeaders = (h: Record<string, string>): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(h)) out[k] = shouldRedactKey(k) ? "[redacted]" : v;
+    return out;
+  };
+
+  const truncate = (s: string | null, limit = truncationLimit): string | null => {
+    if (s == null) return s;
+    return s.length > limit ? s.slice(0, limit) + `…[truncated ${s.length - limit} chars]` : s;
+  };
+
+  const sanitizeExchange = (x: HttpExchange): HttpExchange => ({
+    ...x,
+    requestHeaders: redactHeaders(x.requestHeaders),
+    responseHeaders: redactHeaders(x.responseHeaders),
+    requestBody: truncate(redactBody(x.requestBody)),
+    responseBody: truncate(redactBody(x.responseBody)),
+  });
+
+  const toggleExpanded = (id: StepId) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const update = (id: StepId, patch: Partial<Step>) =>
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 

@@ -100,6 +100,76 @@ function VendorDiagnosticsPage() {
     ctxRef.current = { vendorId: null, productId: null };
   };
 
+  const headersToObject = (h: HeadersInit | undefined): Record<string, string> => {
+    const out: Record<string, string> = {};
+    if (!h) return out;
+    const redact = (k: string, v: string) => (/authorization|apikey|token/i.test(k) ? "[redacted]" : v);
+    if (h instanceof Headers) h.forEach((v, k) => (out[k] = redact(k, v)));
+    else if (Array.isArray(h)) for (const [k, v] of h) out[k] = redact(k, v);
+    else for (const [k, v] of Object.entries(h)) out[k] = redact(k, String(v));
+    return out;
+  };
+
+  const responseHeadersToObject = (h: Headers): Record<string, string> => {
+    const out: Record<string, string> = {};
+    h.forEach((v, k) => (out[k] = v));
+    return out;
+  };
+
+  // Wrap window.fetch during a step so we can capture HTTP exchanges.
+  const withCapture = async <T,>(stepId: StepId, fn: () => Promise<T>): Promise<T> => {
+    const exchanges: HttpExchange[] = [];
+    const original = window.fetch.bind(window);
+    window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const start = performance.now();
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = (init?.method ?? (input instanceof Request ? input.method : "GET")).toUpperCase();
+      let requestBody: string | null = null;
+      if (init?.body && typeof init.body === "string") requestBody = init.body;
+      else if (init?.body) requestBody = "[non-string body]";
+      const requestHeaders = headersToObject(
+        init?.headers ?? (input instanceof Request ? input.headers : undefined),
+      );
+      try {
+        const res = await original(input as RequestInfo, init);
+        let responseBody: string | null = null;
+        try {
+          responseBody = await res.clone().text();
+          if (responseBody.length > 8000) responseBody = responseBody.slice(0, 8000) + "…[truncated]";
+        } catch {
+          responseBody = "[unreadable body]";
+        }
+        exchanges.push({
+          url, method, status: res.status, statusText: res.statusText,
+          durationMs: Math.round(performance.now() - start),
+          requestHeaders, requestBody,
+          responseHeaders: responseHeadersToObject(res.headers),
+          responseBody,
+        });
+        return res;
+      } catch (err) {
+        exchanges.push({
+          url, method, status: 0,
+          statusText: err instanceof Error ? err.message : "fetch failed",
+          durationMs: Math.round(performance.now() - start),
+          requestHeaders, requestBody,
+          responseHeaders: {}, responseBody: null,
+        });
+        throw err;
+      }
+    }) as typeof window.fetch;
+    try {
+      const result = await fn();
+      update(stepId, { exchanges });
+      return result;
+    } catch (e) {
+      update(stepId, { exchanges });
+      throw e;
+    } finally {
+      window.fetch = original;
+    }
+  };
+
   // Each runner returns true on success, false on failure (and updates step state).
   const runners: Record<StepId, (ctx: Ctx) => Promise<boolean>> = {
     auth: async (ctx) => {

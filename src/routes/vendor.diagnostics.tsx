@@ -682,25 +682,35 @@ function VendorDiagnosticsPage() {
                 <CardTitle>Steps</CardTitle>
                 <CardDescription>Retry only the failing step without restarting the whole flow</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="only_failed" className="text-sm font-normal">
-                  Only failed
-                </Label>
-                <Switch
-                  id="only_failed"
-                  checked={showOnlyFailed}
-                  onCheckedChange={setShowOnlyFailed}
-                />
+              <div className="flex items-center gap-4 flex-wrap">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={expandAllVisible}
+                  disabled={!hasResults}
+                  className="h-7 px-2 text-xs"
+                >
+                  <ChevronsUpDown className="mr-1 h-3 w-3" />
+                  {(() => {
+                    const visibleWithExchanges = steps
+                      .filter((s) => (showOnlyFailed ? s.status === "fail" : true))
+                      .filter((s) => (s.exchanges ?? []).length > 0);
+                    const allOpen = visibleWithExchanges.length > 0 && visibleWithExchanges.every((s) => expanded.has(s.id));
+                    return allOpen ? "Collapse all" : "Expand all";
+                  })()}
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="only_failed" className="text-sm font-normal">
+                    Only failed
+                  </Label>
+                  <Switch
+                    id="only_failed"
+                    checked={showOnlyFailed}
+                    onCheckedChange={setShowOnlyFailed}
+                  />
+                </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-3">
-              {steps
-                .map((s, i) => ({ s, i }))
-                .filter(({ s }) => (showOnlyFailed ? s.status === "fail" : true))
-                .map(({ s, i }) => {
                   const isRunningThis = running === s.id;
                   const exchanges = s.exchanges ?? [];
                   const hasDetails = exchanges.length > 0;

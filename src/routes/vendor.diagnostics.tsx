@@ -710,6 +710,7 @@ function VendorDiagnosticsPage() {
                     onCheckedChange={setShowOnlyFailed}
                   />
                 </div>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

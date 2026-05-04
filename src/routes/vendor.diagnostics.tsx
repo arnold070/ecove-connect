@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import {
   CheckCircle2, XCircle, Loader2, Circle, AlertCircle, RotateCw,
   Download, Copy, FileSpreadsheet, ChevronDown, ChevronRight, Filter, Shield,
+  ChevronsUpDown, Clipboard,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -103,6 +104,8 @@ function VendorDiagnosticsPage() {
   const [expanded, setExpanded] = useState<Set<StepId>>(new Set());
   const DEFAULT_REDACT_KEYS = "password, authorization, email, apikey, token, cookie, set-cookie, secret";
   const [redactKeysInput, setRedactKeysInput] = useState(DEFAULT_REDACT_KEYS);
+  // Per-step truncation overrides
+  const [stepTruncOverrides, setStepTruncOverrides] = useState<Record<StepId, number>>({} as Record<StepId, number>);
   const [truncationLimit, setTruncationLimit] = useState(8000);
 
   const redactKeyList = redactKeysInput
@@ -155,13 +158,16 @@ function VendorDiagnosticsPage() {
     return s.length > limit ? s.slice(0, limit) + `…[truncated ${s.length - limit} chars]` : s;
   };
 
-  const sanitizeExchange = (x: HttpExchange): HttpExchange => ({
-    ...x,
-    requestHeaders: redactHeaders(x.requestHeaders),
-    responseHeaders: redactHeaders(x.responseHeaders),
-    requestBody: truncate(redactBody(x.requestBody)),
-    responseBody: truncate(redactBody(x.responseBody)),
-  });
+  const sanitizeExchange = (x: HttpExchange, limitOverride?: number): HttpExchange => {
+    const limit = limitOverride ?? truncationLimit;
+    return {
+      ...x,
+      requestHeaders: redactHeaders(x.requestHeaders),
+      responseHeaders: redactHeaders(x.responseHeaders),
+      requestBody: truncate(redactBody(x.requestBody), limit),
+      responseBody: truncate(redactBody(x.responseBody), limit),
+    };
+  };
 
   const toggleExpanded = (id: StepId) => {
     setExpanded((prev) => {
@@ -170,6 +176,38 @@ function VendorDiagnosticsPage() {
       else next.add(id);
       return next;
     });
+  };
+
+  const expandAllVisible = () => {
+    const visibleIds = steps
+      .filter((s) => (showOnlyFailed ? s.status === "fail" : true))
+      .filter((s) => (s.exchanges ?? []).length > 0)
+      .map((s) => s.id);
+    setExpanded((prev) => {
+      const allOpen = visibleIds.every((id) => prev.has(id));
+      if (allOpen) return new Set(); // collapse all
+      return new Set([...prev, ...visibleIds]);
+    });
+  };
+
+  const copyCallDetails = async (raw: HttpExchange, stepId: StepId) => {
+    const limit = stepTruncOverrides[stepId] ?? truncationLimit;
+    const x = sanitizeExchange(raw, limit);
+    const lines = [
+      `${x.method} ${x.url} → ${x.status} ${x.statusText} (${x.durationMs}ms)`,
+      "",
+      "--- Request Headers ---",
+      JSON.stringify(x.requestHeaders, null, 2),
+    ];
+    if (x.requestBody) lines.push("", "--- Request Body ---", x.requestBody);
+    lines.push("", "--- Response Headers ---", JSON.stringify(x.responseHeaders, null, 2));
+    if (x.responseBody) lines.push("", "--- Response Body ---", x.responseBody);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast.success("Call details copied");
+    } catch {
+      toast.error("Could not access clipboard");
+    }
   };
 
   const update = (id: StepId, patch: Partial<Step>) =>
@@ -644,16 +682,34 @@ function VendorDiagnosticsPage() {
                 <CardTitle>Steps</CardTitle>
                 <CardDescription>Retry only the failing step without restarting the whole flow</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="only_failed" className="text-sm font-normal">
-                  Only failed
-                </Label>
-                <Switch
-                  id="only_failed"
-                  checked={showOnlyFailed}
-                  onCheckedChange={setShowOnlyFailed}
-                />
+              <div className="flex items-center gap-4 flex-wrap">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={expandAllVisible}
+                  disabled={!hasResults}
+                  className="h-7 px-2 text-xs"
+                >
+                  <ChevronsUpDown className="mr-1 h-3 w-3" />
+                  {(() => {
+                    const visibleWithExchanges = steps
+                      .filter((s) => (showOnlyFailed ? s.status === "fail" : true))
+                      .filter((s) => (s.exchanges ?? []).length > 0);
+                    const allOpen = visibleWithExchanges.length > 0 && visibleWithExchanges.every((s) => expanded.has(s.id));
+                    return allOpen ? "Collapse all" : "Expand all";
+                  })()}
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="only_failed" className="text-sm font-normal">
+                    Only failed
+                  </Label>
+                  <Switch
+                    id="only_failed"
+                    checked={showOnlyFailed}
+                    onCheckedChange={setShowOnlyFailed}
+                  />
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -730,8 +786,38 @@ function VendorDiagnosticsPage() {
                           <Collapsible open={isOpen} onOpenChange={() => toggleExpanded(s.id)}>
                             <CollapsibleTrigger className="sr-only">toggle</CollapsibleTrigger>
                             <CollapsibleContent className="mt-2 space-y-3">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Label className="text-xs font-normal">Truncation:</Label>
+                                <Input
+                                  type="number"
+                                  min={500}
+                                  step={2000}
+                                  value={stepTruncOverrides[s.id] ?? truncationLimit}
+                                  onChange={(e) => {
+                                    const v = Math.max(500, Number(e.target.value) || truncationLimit);
+                                    setStepTruncOverrides((prev) => ({ ...prev, [s.id]: v }));
+                                  }}
+                                  className="h-6 w-24 text-xs"
+                                />
+                                <span>chars</span>
+                                {stepTruncOverrides[s.id] != null && stepTruncOverrides[s.id] !== truncationLimit && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-1 text-[10px]"
+                                    onClick={() => setStepTruncOverrides((prev) => {
+                                      const next = { ...prev };
+                                      delete next[s.id];
+                                      return next;
+                                    })}
+                                  >
+                                    Reset
+                                  </Button>
+                                )}
+                              </div>
                               {exchanges.map((raw, idx) => {
-                                const x = sanitizeExchange(raw);
+                                const stepLimit = stepTruncOverrides[s.id] ?? truncationLimit;
+                                const x = sanitizeExchange(raw, stepLimit);
                                 const codeClass =
                                   x.status >= 400 || x.status === 0
                                     ? "text-destructive"
@@ -741,12 +827,23 @@ function VendorDiagnosticsPage() {
                                     key={idx}
                                     className="rounded-md border bg-muted/30 p-3 text-xs space-y-2 overflow-hidden"
                                   >
-                                    <div className="flex flex-wrap items-center gap-2 font-mono">
-                                      <span className="font-semibold">{x.method}</span>
-                                      <span className="break-all">{x.url}</span>
-                                      <span className={codeClass}>
-                                        → {x.status} {x.statusText} ({x.durationMs}ms)
-                                      </span>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="flex flex-wrap items-center gap-2 font-mono">
+                                        <span className="font-semibold">{x.method}</span>
+                                        <span className="break-all">{x.url}</span>
+                                        <span className={codeClass}>
+                                          → {x.status} {x.statusText} ({x.durationMs}ms)
+                                        </span>
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-[10px] shrink-0"
+                                        onClick={() => void copyCallDetails(raw, s.id)}
+                                      >
+                                        <Clipboard className="mr-1 h-3 w-3" />
+                                        Copy call
+                                      </Button>
                                     </div>
                                     <details>
                                       <summary className="cursor-pointer text-muted-foreground">

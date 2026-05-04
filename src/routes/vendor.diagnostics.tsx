@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import {
   CheckCircle2, XCircle, Loader2, Circle, AlertCircle, RotateCw,
   Download, Copy, FileSpreadsheet, ChevronDown, ChevronRight, Filter, Shield,
+  ChevronsUpDown, Clipboard,
 } from "lucide-react";
 import { toast } from "sonner";
 

@@ -710,7 +710,14 @@ function VendorDiagnosticsPage() {
                     onCheckedChange={setShowOnlyFailed}
                   />
                 </div>
-              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ol className="space-y-3">
+              {steps
+                .map((s, i) => ({ s, i }))
+                .filter(({ s }) => (showOnlyFailed ? s.status === "fail" : true))
+                .map(({ s, i }) => {
                   const isRunningThis = running === s.id;
                   const exchanges = s.exchanges ?? [];
                   const hasDetails = exchanges.length > 0;

@@ -786,8 +786,38 @@ function VendorDiagnosticsPage() {
                           <Collapsible open={isOpen} onOpenChange={() => toggleExpanded(s.id)}>
                             <CollapsibleTrigger className="sr-only">toggle</CollapsibleTrigger>
                             <CollapsibleContent className="mt-2 space-y-3">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Label className="text-xs font-normal">Truncation:</Label>
+                                <Input
+                                  type="number"
+                                  min={500}
+                                  step={2000}
+                                  value={stepTruncOverrides[s.id] ?? truncationLimit}
+                                  onChange={(e) => {
+                                    const v = Math.max(500, Number(e.target.value) || truncationLimit);
+                                    setStepTruncOverrides((prev) => ({ ...prev, [s.id]: v }));
+                                  }}
+                                  className="h-6 w-24 text-xs"
+                                />
+                                <span>chars</span>
+                                {stepTruncOverrides[s.id] != null && stepTruncOverrides[s.id] !== truncationLimit && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-1 text-[10px]"
+                                    onClick={() => setStepTruncOverrides((prev) => {
+                                      const next = { ...prev };
+                                      delete next[s.id];
+                                      return next;
+                                    })}
+                                  >
+                                    Reset
+                                  </Button>
+                                )}
+                              </div>
                               {exchanges.map((raw, idx) => {
-                                const x = sanitizeExchange(raw);
+                                const stepLimit = stepTruncOverrides[s.id] ?? truncationLimit;
+                                const x = sanitizeExchange(raw, stepLimit);
                                 const codeClass =
                                   x.status >= 400 || x.status === 0
                                     ? "text-destructive"
@@ -797,12 +827,23 @@ function VendorDiagnosticsPage() {
                                     key={idx}
                                     className="rounded-md border bg-muted/30 p-3 text-xs space-y-2 overflow-hidden"
                                   >
-                                    <div className="flex flex-wrap items-center gap-2 font-mono">
-                                      <span className="font-semibold">{x.method}</span>
-                                      <span className="break-all">{x.url}</span>
-                                      <span className={codeClass}>
-                                        → {x.status} {x.statusText} ({x.durationMs}ms)
-                                      </span>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="flex flex-wrap items-center gap-2 font-mono">
+                                        <span className="font-semibold">{x.method}</span>
+                                        <span className="break-all">{x.url}</span>
+                                        <span className={codeClass}>
+                                          → {x.status} {x.statusText} ({x.durationMs}ms)
+                                        </span>
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-[10px] shrink-0"
+                                        onClick={() => void copyCallDetails(raw, s.id)}
+                                      >
+                                        <Clipboard className="mr-1 h-3 w-3" />
+                                        Copy call
+                                      </Button>
                                     </div>
                                     <details>
                                       <summary className="cursor-pointer text-muted-foreground">

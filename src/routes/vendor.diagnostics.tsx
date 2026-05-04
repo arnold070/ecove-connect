@@ -158,13 +158,16 @@ function VendorDiagnosticsPage() {
     return s.length > limit ? s.slice(0, limit) + `…[truncated ${s.length - limit} chars]` : s;
   };
 
-  const sanitizeExchange = (x: HttpExchange): HttpExchange => ({
-    ...x,
-    requestHeaders: redactHeaders(x.requestHeaders),
-    responseHeaders: redactHeaders(x.responseHeaders),
-    requestBody: truncate(redactBody(x.requestBody)),
-    responseBody: truncate(redactBody(x.responseBody)),
-  });
+  const sanitizeExchange = (x: HttpExchange, limitOverride?: number): HttpExchange => {
+    const limit = limitOverride ?? truncationLimit;
+    return {
+      ...x,
+      requestHeaders: redactHeaders(x.requestHeaders),
+      responseHeaders: redactHeaders(x.responseHeaders),
+      requestBody: truncate(redactBody(x.requestBody), limit),
+      responseBody: truncate(redactBody(x.responseBody), limit),
+    };
+  };
 
   const toggleExpanded = (id: StepId) => {
     setExpanded((prev) => {
@@ -173,6 +176,38 @@ function VendorDiagnosticsPage() {
       else next.add(id);
       return next;
     });
+  };
+
+  const expandAllVisible = () => {
+    const visibleIds = steps
+      .filter((s) => (showOnlyFailed ? s.status === "fail" : true))
+      .filter((s) => (s.exchanges ?? []).length > 0)
+      .map((s) => s.id);
+    setExpanded((prev) => {
+      const allOpen = visibleIds.every((id) => prev.has(id));
+      if (allOpen) return new Set(); // collapse all
+      return new Set([...prev, ...visibleIds]);
+    });
+  };
+
+  const copyCallDetails = async (raw: HttpExchange, stepId: StepId) => {
+    const limit = stepTruncOverrides[stepId] ?? truncationLimit;
+    const x = sanitizeExchange(raw, limit);
+    const lines = [
+      `${x.method} ${x.url} → ${x.status} ${x.statusText} (${x.durationMs}ms)`,
+      "",
+      "--- Request Headers ---",
+      JSON.stringify(x.requestHeaders, null, 2),
+    ];
+    if (x.requestBody) lines.push("", "--- Request Body ---", x.requestBody);
+    lines.push("", "--- Response Headers ---", JSON.stringify(x.responseHeaders, null, 2));
+    if (x.responseBody) lines.push("", "--- Response Body ---", x.responseBody);
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      toast.success("Call details copied");
+    } catch {
+      toast.error("Could not access clipboard");
+    }
   };
 
   const update = (id: StepId, patch: Partial<Step>) =>

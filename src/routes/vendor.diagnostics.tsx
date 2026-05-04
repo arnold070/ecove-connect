@@ -104,6 +104,8 @@ function VendorDiagnosticsPage() {
   const [expanded, setExpanded] = useState<Set<StepId>>(new Set());
   const DEFAULT_REDACT_KEYS = "password, authorization, email, apikey, token, cookie, set-cookie, secret";
   const [redactKeysInput, setRedactKeysInput] = useState(DEFAULT_REDACT_KEYS);
+  // Per-step truncation overrides
+  const [stepTruncOverrides, setStepTruncOverrides] = useState<Record<StepId, number>>({} as Record<StepId, number>);
   const [truncationLimit, setTruncationLimit] = useState(8000);
 
   const redactKeyList = redactKeysInput

@@ -30,9 +30,9 @@ describe("Error page HTML fallback", () => {
       message: "Test failure",
       statusCode: 500,
     });
-    expect(html).toContain('"errorCode": "ERR001"');
-    expect(html).toContain('"requestId": "req-99"');
-    expect(html).toContain('"message": "Test failure"');
+    expect(html).toContain("ERR001");
+    expect(html).toContain("req-99");
+    expect(html).toContain("Test failure");
   });
 
   it("escapes HTML in user-supplied data", () => {

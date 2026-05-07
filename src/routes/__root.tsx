@@ -36,16 +36,16 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
 
   console.error(error);
 
-  const errorCode = React.useMemo(
+  const errorCode = useMemo(
     () => Math.random().toString(36).substring(2, 8).toUpperCase(),
     [],
   );
 
-  const sanitizedContext = React.useMemo(
+  const sanitizedContext = useMemo(
     () =>
       JSON.stringify(
         {
@@ -60,7 +60,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     [errorCode, error.message],
   );
 
-  const handleCopy = React.useCallback(() => {
+  const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(sanitizedContext).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);

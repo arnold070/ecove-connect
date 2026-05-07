@@ -1,6 +1,7 @@
 import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import { captureError, sanitizeForUser } from "./lib/error-tracking";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -18,7 +19,10 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
-async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
+async function normalizeCatastrophicSsrResponse(
+  request: Request,
+  response: Response,
+): Promise<Response> {
   if (response.status < 500) return response;
 
   const contentType = response.headers.get("content-type") ?? "";
@@ -29,11 +33,18 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
     return response;
   }
 
-  console.error(consumeLastCapturedError() ?? new Error(`Server rendered HTTPError response: ${body}`));
+  const captured = consumeLastCapturedError();
+  const underlying = captured ?? new Error(`h3 swallowed SSR error: ${body}`);
+  const ctx = captureError(request, underlying, 500);
+  const userCtx = sanitizeForUser(ctx);
 
-  return new Response(renderErrorPage(), {
+  return new Response(renderErrorPage(userCtx), {
     status: 500,
-    headers: { "content-type": "text/html; charset=utf-8" },
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "x-request-id": ctx.requestId,
+      "x-error-code": ctx.errorCode,
+    },
   });
 }
 
@@ -42,12 +53,17 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return await normalizeCatastrophicSsrResponse(request, response);
     } catch (error) {
-      console.error(error);
-      return new Response(renderErrorPage(), {
+      const errCtx = captureError(request, error, 500);
+      const userCtx = sanitizeForUser(errCtx);
+      return new Response(renderErrorPage(userCtx), {
         status: 500,
-        headers: { "content-type": "text/html; charset=utf-8" },
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "x-request-id": errCtx.requestId,
+          "x-error-code": errCtx.errorCode,
+        },
       });
     }
   },

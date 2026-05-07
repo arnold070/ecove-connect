@@ -11,6 +11,9 @@ const supabasePublishableKey =
   "";
 
 export default defineConfig({
+  tanstackStart: {
+    server: { entry: "server" },
+  },
   vite: {
     define: {
       "import.meta.env.VITE_PUBLIC_SUPABASE_URL": JSON.stringify(supabaseUrl),

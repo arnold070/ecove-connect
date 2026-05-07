@@ -35,22 +35,59 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
+  const [copied, setCopied] = React.useState(false);
 
   console.error(error);
+
+  const errorCode = React.useMemo(
+    () => Math.random().toString(36).substring(2, 8).toUpperCase(),
+    [],
+  );
+
+  const sanitizedContext = React.useMemo(
+    () =>
+      JSON.stringify(
+        {
+          errorCode,
+          timestamp: new Date().toISOString(),
+          message: error.message,
+          url: typeof window !== "undefined" ? window.location.href : "",
+        },
+        null,
+        2,
+      ),
+    [errorCode, error.message],
+  );
+
+  const handleCopy = React.useCallback(() => {
+    navigator.clipboard.writeText(sanitizedContext).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [sanitizedContext]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-2xl font-bold text-foreground">Something went wrong</h1>
+        <div className="mt-2 inline-block rounded-md bg-destructive/10 px-3 py-1 font-mono text-sm font-semibold tracking-wider text-destructive">
+          {errorCode}
+        </div>
         <p className="mt-2 text-sm text-muted-foreground">
-          An unexpected error occurred. Please try again.
+          An unexpected error occurred. Share the error code above with support if the issue persists.
         </p>
         {import.meta.env.DEV && error.message && (
           <pre className="mt-4 max-h-40 overflow-auto rounded-md bg-muted p-3 text-left font-mono text-xs text-destructive">
             {error.message}
           </pre>
         )}
-        <div className="mt-6 flex items-center justify-center gap-3">
+        <div className="mt-4 rounded-lg border border-border bg-muted/50 p-3 text-left">
+          <div className="mb-1 text-xs font-medium text-muted-foreground">Sanitized error context</div>
+          <pre className="max-h-32 overflow-auto font-mono text-xs text-foreground/80">
+            {sanitizedContext}
+          </pre>
+        </div>
+        <div className="mt-4 flex items-center justify-center gap-3">
           <button
             onClick={() => {
               router.invalidate();
@@ -66,6 +103,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           >
             Go home
           </Link>
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            {copied ? "Copied!" : "Copy details"}
+          </button>
         </div>
       </div>
     </div>

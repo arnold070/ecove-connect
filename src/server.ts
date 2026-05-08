@@ -2,6 +2,7 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { captureError, sanitizeForUser } from "./lib/error-tracking";
+import { reportToSentry, sentryEventUrl } from "./lib/sentry.server";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -17,6 +18,41 @@ async function getServerEntry(): Promise<ServerEntry> {
   }
 
   return serverEntryPromise;
+}
+
+async function handleCatastrophicError(
+  request: Request,
+  error: unknown,
+  statusCode: number,
+): Promise<Response> {
+  const ctx = captureError(request, error, statusCode);
+  const userCtx = sanitizeForUser(ctx);
+
+  // Report to Sentry with requestId/errorCode as tags
+  const sentryResult = await reportToSentry(request, error, {
+    requestId: ctx.requestId,
+    errorCode: ctx.errorCode,
+    statusCode,
+  });
+
+  const sentryUrl = sentryResult.sent ? sentryEventUrl(sentryResult.eventId) : null;
+
+  return new Response(
+    renderErrorPage({
+      ...userCtx,
+      sentryEventId: sentryResult.eventId,
+      sentryUrl: sentryUrl ?? undefined,
+    }),
+    {
+      status: statusCode,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "x-request-id": ctx.requestId,
+        "x-error-code": ctx.errorCode,
+        ...(sentryResult.sent ? { "x-sentry-event-id": sentryResult.eventId } : {}),
+      },
+    },
+  );
 }
 
 async function normalizeCatastrophicSsrResponse(
@@ -35,17 +71,7 @@ async function normalizeCatastrophicSsrResponse(
 
   const captured = consumeLastCapturedError();
   const underlying = captured ?? new Error(`h3 swallowed SSR error: ${body}`);
-  const ctx = captureError(request, underlying, 500);
-  const userCtx = sanitizeForUser(ctx);
-
-  return new Response(renderErrorPage(userCtx), {
-    status: 500,
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "x-request-id": ctx.requestId,
-      "x-error-code": ctx.errorCode,
-    },
-  });
+  return handleCatastrophicError(request, underlying, 500);
 }
 
 export default {
@@ -55,16 +81,7 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(request, response);
     } catch (error) {
-      const errCtx = captureError(request, error, 500);
-      const userCtx = sanitizeForUser(errCtx);
-      return new Response(renderErrorPage(userCtx), {
-        status: 500,
-        headers: {
-          "content-type": "text/html; charset=utf-8",
-          "x-request-id": errCtx.requestId,
-          "x-error-code": errCtx.errorCode,
-        },
-      });
+      return handleCatastrophicError(request, error, 500);
     }
   },
 };

@@ -125,3 +125,22 @@ describe("SSR 500 regression — server wrapper", () => {
     expect(contentType.includes("application/json")).toBe(false);
   });
 });
+
+describe("Sentry integration in error page", () => {
+  it("includes Sentry event ID and link when provided", () => {
+    const html = renderErrorPage({
+      errorCode: "S1",
+      requestId: "req-s1",
+      sentryEventId: "abc123def456",
+      sentryUrl: "https://sentry.io/organizations/~/issues/?query=abc123def456",
+    });
+    expect(html).toContain("abc123def456");
+    expect(html).toContain("View in Sentry");
+    expect(html).toContain("sentry.io");
+  });
+
+  it("omits Sentry link when no sentryUrl provided", () => {
+    const html = renderErrorPage({ errorCode: "S2", requestId: "req-s2" });
+    expect(html).not.toContain("View in Sentry");
+  });
+});

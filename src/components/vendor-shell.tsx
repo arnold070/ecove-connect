@@ -17,6 +17,7 @@ import {
   Download,
   Menu,
   LogOut,
+  Settings,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/auth/AuthProvider";

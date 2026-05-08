@@ -1,0 +1,383 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { VendorShell } from "@/components/vendor-shell";
+import {
+  getPlatformSettings,
+  updatePlatformSetting,
+  addPlatformSetting,
+  type PlatformSetting,
+} from "@/lib/platform-settings.functions";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Eye,
+  EyeOff,
+  Save,
+  Plus,
+  Shield,
+  CreditCard,
+  BarChart3,
+  Mail,
+  Settings,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/vendor/settings")({
+  component: VendorSettingsPage,
+  head: () => ({ meta: [{ title: "Settings — ecove Vendor" }] }),
+});
+
+const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; description: string }> = {
+  monitoring: { label: "Monitoring & Error Tracking", icon: <Shield className="h-5 w-5" />, description: "Configure error tracking and monitoring services" },
+  payments: { label: "Payment Gateways", icon: <CreditCard className="h-5 w-5" />, description: "API keys for payment processing providers" },
+  analytics: { label: "Analytics", icon: <BarChart3 className="h-5 w-5" />, description: "Analytics and tracking service configuration" },
+  email: { label: "Email & Notifications", icon: <Mail className="h-5 w-5" />, description: "SMTP and email delivery settings" },
+  general: { label: "General", icon: <Settings className="h-5 w-5" />, description: "Other platform configuration" },
+};
+
+function VendorSettingsPage() {
+  const fetchSettings = useServerFn(getPlatformSettings);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["platform-settings"],
+    queryFn: () => fetchSettings(),
+  });
+
+  const settings = data?.settings ?? [];
+
+  // Group by category
+  const grouped = settings.reduce<Record<string, PlatformSetting[]>>((acc, s) => {
+    (acc[s.category] ??= []).push(s);
+    return acc;
+  }, {});
+
+  const categoryOrder = ["payments", "monitoring", "analytics", "email", "general"];
+  const sortedCategories = Object.keys(grouped).sort(
+    (a, b) => (categoryOrder.indexOf(a) === -1 ? 99 : categoryOrder.indexOf(a)) - (categoryOrder.indexOf(b) === -1 ? 99 : categoryOrder.indexOf(b)),
+  );
+
+  return (
+    <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
+      {isLoading && (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6 text-center">
+          <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+          <p className="mt-2 text-sm font-medium text-destructive">
+            Failed to load settings. Make sure you have admin access and the platform_settings table exists.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{(error as Error).message}</p>
+        </div>
+      )}
+
+      {!isLoading && !error && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              {settings.length} key{settings.length !== 1 ? "s" : ""} configured
+            </p>
+            <AddKeyDialog onAdded={() => queryClient.invalidateQueries({ queryKey: ["platform-settings"] })} />
+          </div>
+
+          {sortedCategories.map((cat) => (
+            <CategoryCard
+              key={cat}
+              category={cat}
+              settings={grouped[cat]!}
+              onUpdated={() => queryClient.invalidateQueries({ queryKey: ["platform-settings"] })}
+            />
+          ))}
+        </div>
+      )}
+    </VendorShell>
+  );
+}
+
+function CategoryCard({
+  category,
+  settings,
+  onUpdated,
+}: {
+  category: string;
+  settings: PlatformSetting[];
+  onUpdated: () => void;
+}) {
+  const meta = CATEGORY_META[category] ?? CATEGORY_META.general!;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            {meta.icon}
+          </div>
+          <div>
+            <CardTitle className="text-base">{meta.label}</CardTitle>
+            <CardDescription className="text-xs">{meta.description}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {settings.map((s) => (
+          <SettingRow key={s.id} setting={s} onUpdated={onUpdated} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function SettingRow({ setting, onUpdated }: { setting: PlatformSetting; onUpdated: () => void }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("");
+  const [revealed, setRevealed] = useState(false);
+  const updateFn = useServerFn(updatePlatformSetting);
+
+  const mutation = useMutation({
+    mutationFn: (newValue: string) => updateFn({ data: { id: setting.id, value: newValue } }),
+    onSuccess: () => {
+      toast.success(`${setting.label} updated`);
+      setEditing(false);
+      onUpdated();
+    },
+    onError: (err) => toast.error(`Failed: ${(err as Error).message}`),
+  });
+
+  const startEditing = useCallback(() => {
+    setValue(setting.is_secret ? "" : setting.value);
+    setEditing(true);
+  }, [setting]);
+
+  const hasValue = setting.value && setting.value !== "••••••••";
+  const displayValue = setting.is_secret
+    ? revealed && setting.value
+      ? setting.value
+      : "••••••••"
+    : setting.value || "—";
+
+  return (
+    <div className="rounded-lg border border-border bg-background p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-sm font-semibold text-foreground">{setting.key}</span>
+            {setting.is_secret && (
+              <Badge variant="outline" className="text-[10px]">
+                Secret
+              </Badge>
+            )}
+            {hasValue ? (
+              <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+            ) : (
+              <AlertCircle className="h-3.5 w-3.5 text-muted-foreground/50" />
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">{setting.description}</p>
+        </div>
+
+        {!editing && (
+          <div className="flex items-center gap-2">
+            {setting.is_secret && setting.value && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setRevealed((r) => !r)}
+              >
+                {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={startEditing}>
+              {hasValue ? "Update" : "Set value"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {!editing && (
+        <div className="mt-2 truncate rounded bg-muted/50 px-2.5 py-1.5 font-mono text-xs text-muted-foreground">
+          {displayValue}
+        </div>
+      )}
+
+      {editing && (
+        <div className="mt-3 flex items-center gap-2">
+          <Input
+            type={setting.is_secret ? "password" : "text"}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={`Enter ${setting.label}`}
+            className="h-8 font-mono text-xs"
+            autoFocus
+          />
+          <Button
+            size="sm"
+            className="h-8 gap-1 text-xs"
+            onClick={() => mutation.mutate(value)}
+            disabled={mutation.isPending}
+          >
+            <Save className="h-3 w-3" />
+            Save
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={() => setEditing(false)}
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      {setting.updated_at && (
+        <p className="mt-1.5 text-[10px] text-muted-foreground/50">
+          Last updated: {new Date(setting.updated_at).toLocaleDateString()}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function AddKeyDialog({ onAdded }: { onAdded: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [key, setKey] = useState("");
+  const [label, setLabel] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("general");
+  const [isSecret, setIsSecret] = useState(false);
+  const addFn = useServerFn(addPlatformSetting);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      addFn({
+        data: {
+          key: key.toUpperCase().replace(/[^A-Z0-9_]/g, "_"),
+          label,
+          description: description || undefined,
+          category,
+          is_secret: isSecret,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Key added");
+      setOpen(false);
+      setKey("");
+      setLabel("");
+      setDescription("");
+      setCategory("general");
+      setIsSecret(false);
+      onAdded();
+    },
+    onError: (err) => toast.error(`Failed: ${(err as Error).message}`),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" />
+          Add Key
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add API Key</DialogTitle>
+          <DialogDescription>
+            Add a new configuration key to the platform settings.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label className="text-xs">Key Name</Label>
+            <Input
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="e.g. TWILIO_API_KEY"
+              className="mt-1 font-mono text-sm uppercase"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Display Label</Label>
+            <Input
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="e.g. Twilio API Key"
+              className="mt-1 text-sm"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Description (optional)</Label>
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Short description of what this key is for"
+              className="mt-1 text-sm"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Category</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="payments">Payments</SelectItem>
+                <SelectItem value="monitoring">Monitoring</SelectItem>
+                <SelectItem value="analytics">Analytics</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="general">General</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch checked={isSecret} onCheckedChange={setIsSecret} />
+            <Label className="text-xs">This is a secret value (will be masked in UI)</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !key || !label}>
+            Add Key
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

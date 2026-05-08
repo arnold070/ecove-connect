@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorIndexRouteImport } from './routes/vendor.index'
 import { Route as VendorStoreRouteImport } from './routes/vendor.store'
+import { Route as VendorSettingsRouteImport } from './routes/vendor.settings'
 import { Route as VendorReviewsRouteImport } from './routes/vendor.reviews'
 import { Route as VendorReturnsRouteImport } from './routes/vendor.returns'
 import { Route as VendorReportsRouteImport } from './routes/vendor.reports'
@@ -56,6 +57,11 @@ const VendorIndexRoute = VendorIndexRouteImport.update({
 const VendorStoreRoute = VendorStoreRouteImport.update({
   id: '/store',
   path: '/store',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorSettingsRoute = VendorSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => VendorRoute,
 } as any)
 const VendorReviewsRoute = VendorReviewsRouteImport.update({
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/vendor/': typeof VendorIndexRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByTo {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/vendor': typeof VendorIndexRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/vendor/': typeof VendorIndexRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
+    | '/vendor/settings'
     | '/vendor/store'
     | '/vendor/'
     | '/vendor/products/new'
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
+    | '/vendor/settings'
     | '/vendor/store'
     | '/vendor'
     | '/vendor/products/new'
@@ -234,6 +245,7 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
+    | '/vendor/settings'
     | '/vendor/store'
     | '/vendor/'
     | '/vendor/products/new'
@@ -290,6 +302,13 @@ declare module '@tanstack/react-router' {
       path: '/store'
       fullPath: '/vendor/store'
       preLoaderRoute: typeof VendorStoreRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/settings': {
+      id: '/vendor/settings'
+      path: '/settings'
+      fullPath: '/vendor/settings'
+      preLoaderRoute: typeof VendorSettingsRouteImport
       parentRoute: typeof VendorRoute
     }
     '/vendor/reviews': {
@@ -389,6 +408,7 @@ interface VendorRouteChildren {
   VendorReportsRoute: typeof VendorReportsRoute
   VendorReturnsRoute: typeof VendorReturnsRoute
   VendorReviewsRoute: typeof VendorReviewsRoute
+  VendorSettingsRoute: typeof VendorSettingsRoute
   VendorStoreRoute: typeof VendorStoreRoute
   VendorIndexRoute: typeof VendorIndexRoute
   VendorProductsNewRoute: typeof VendorProductsNewRoute
@@ -406,6 +426,7 @@ const VendorRouteChildren: VendorRouteChildren = {
   VendorReportsRoute: VendorReportsRoute,
   VendorReturnsRoute: VendorReturnsRoute,
   VendorReviewsRoute: VendorReviewsRoute,
+  VendorSettingsRoute: VendorSettingsRoute,
   VendorStoreRoute: VendorStoreRoute,
   VendorIndexRoute: VendorIndexRoute,
   VendorProductsNewRoute: VendorProductsNewRoute,
@@ -425,12 +446,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

@@ -17,6 +17,7 @@ import {
   Download,
   Menu,
   LogOut,
+  Settings,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/auth/AuthProvider";
@@ -65,6 +66,7 @@ const NAV_SECTIONS: { title: string; items: VendorNavLink[] }[] = [
     items: [
       { to: "/vendor/profile", label: "Profile & Bank", icon: <UserCog className="h-4 w-4" /> },
       { to: "/vendor/policies", label: "Marketplace Policies", icon: <ScrollText className="h-4 w-4" /> },
+      { to: "/vendor/settings", label: "API Keys & Settings", icon: <Settings className="h-4 w-4" /> },
     ],
   },
 ];

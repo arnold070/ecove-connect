@@ -1,5 +1,5 @@
 /**
- * Self-contained HTML error page with error code, request ID, and copy-context button.
+ * Self-contained HTML error page with error code, request ID, Sentry link, and copy-context button.
  * Must NOT import any app code to avoid cascading failures.
  */
 
@@ -10,6 +10,8 @@ export interface ErrorPageData {
   url: string;
   statusCode: number;
   message: string;
+  sentryEventId?: string;
+  sentryUrl?: string;
 }
 
 const defaultData: ErrorPageData = {
@@ -39,10 +41,19 @@ export function renderErrorPage(data?: Partial<ErrorPageData>): string {
       url: d.url,
       statusCode: d.statusCode,
       message: d.message,
+      ...(d.sentryEventId ? { sentryEventId: d.sentryEventId } : {}),
     },
     null,
     2,
   );
+
+  const sentryLink = d.sentryUrl
+    ? `<a href="${escapeHtml(d.sentryUrl)}" target="_blank" rel="noopener noreferrer" class="sentry-link">View in Sentry ↗</a>`
+    : "";
+
+  const sentryIdLine = d.sentryEventId
+    ? `<div class="sentry-id">Sentry Event: ${escapeHtml(d.sentryEventId)}</div>`
+    : "";
 
   return `<!doctype html>
 <html lang="en">
@@ -57,6 +68,7 @@ export function renderErrorPage(data?: Partial<ErrorPageData>): string {
       h1 { margin: 0; font-size: 1.875rem; line-height: 1.2; }
       .error-code { display: inline-block; margin-top: 0.5rem; padding: 0.25rem 0.75rem; background: #fee2e2; color: #991b1b; border-radius: 0.375rem; font-family: monospace; font-size: 0.875rem; font-weight: 600; letter-spacing: 0.05em; }
       .request-id { margin-top: 0.5rem; color: #94a3b8; font-family: monospace; font-size: 0.75rem; }
+      .sentry-id { margin-top: 0.25rem; color: #94a3b8; font-family: monospace; font-size: 0.75rem; }
       p { margin: 0.75rem 0 1.5rem; color: #475569; line-height: 1.6; }
       .actions { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
       a, button { border-radius: 0.375rem; border: 1px solid #cbd5e1; padding: 0.625rem 0.875rem; font: inherit; font-size: 0.875rem; text-decoration: none; cursor: pointer; transition: background 0.15s; }
@@ -64,6 +76,8 @@ export function renderErrorPage(data?: Partial<ErrorPageData>): string {
       button.primary:hover { background: #1e293b; }
       a { background: #ffffff; color: #0f172a; }
       a:hover { background: #f1f5f9; }
+      .sentry-link { background: #7c3aed; color: #ffffff; border-color: #7c3aed; }
+      .sentry-link:hover { background: #6d28d9; color: #ffffff; }
       button.copy { background: #ffffff; color: #0f172a; }
       button.copy:hover { background: #f1f5f9; }
       .context-block { margin-top: 1.5rem; text-align: left; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; max-height: 12rem; overflow: auto; }
@@ -77,10 +91,12 @@ export function renderErrorPage(data?: Partial<ErrorPageData>): string {
       <h1>Something went wrong</h1>
       <div class="error-code">${escapeHtml(d.errorCode)}</div>
       <div class="request-id">Request ID: ${escapeHtml(d.requestId)}</div>
+      ${sentryIdLine}
       <p>The server encountered an unexpected error. You can refresh or go home. If the problem persists, share the error details below with support.</p>
       <div class="actions">
         <button type="button" class="primary" onclick="location.reload()">Refresh</button>
         <a href="/">Go home</a>
+        ${sentryLink}
         <button type="button" class="copy" id="copy-btn" onclick="copyContext()">Copy error details</button>
       </div>
       <div class="context-block">

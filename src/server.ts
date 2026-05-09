@@ -35,7 +35,7 @@ async function handleCatastrophicError(
     statusCode,
   });
 
-  const sentryUrl = sentryResult.sent ? sentryEventUrl(sentryResult.eventId) : null;
+  const sentryUrl = sentryResult.sent ? await sentryEventUrl(sentryResult.eventId) : null;
 
   return new Response(
     renderErrorPage({

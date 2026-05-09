@@ -1,13 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { VendorShell } from "@/components/vendor-shell";
+import { useAuth } from "@/auth/AuthProvider";
 import {
   getPlatformSettings,
   updatePlatformSetting,
   addPlatformSetting,
+  getPlatformAudit,
   type PlatformSetting,
+  type PlatformSettingAuditEntry,
 } from "@/lib/platform-settings.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,6 +52,8 @@ import {
   Settings,
   CheckCircle2,
   AlertCircle,
+  History,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -66,8 +71,39 @@ const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; desc
 };
 
 function VendorSettingsPage() {
+  const { hasRole, loading: authLoading, user } = useAuth();
+  const isAdmin = hasRole("admin");
   const fetchSettings = useServerFn(getPlatformSettings);
   const queryClient = useQueryClient();
+
+  if (authLoading) {
+    return (
+      <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </VendorShell>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return (
+      <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
+        <div className="mx-auto max-w-md rounded-lg border border-border bg-card p-8 text-center">
+          <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
+          <h2 className="mt-3 text-lg font-semibold">Admins only</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Platform API keys can only be viewed and changed by admin users.
+          </p>
+          {!user && (
+            <Link to="/login" className="mt-4 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline">
+              Sign in
+            </Link>
+          )}
+        </div>
+      </VendorShell>
+    );
+  }
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["platform-settings"],

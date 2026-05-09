@@ -115,17 +115,11 @@ function VendorSettingsPage() {
 
 function AdminSettingsView() {
   const fetchSettings = useServerFn(getPlatformSettings);
-  const fetchAudit = useServerFn(getPlatformAudit);
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["platform-settings"],
     queryFn: () => fetchSettings(),
-  });
-
-  const { data: auditData } = useQuery({
-    queryKey: ["platform-settings-audit"],
-    queryFn: () => fetchAudit({ data: { limit: 25 } }),
   });
 
   const settings = data?.settings ?? [];
@@ -139,6 +133,8 @@ function AdminSettingsView() {
   const sortedCategories = Object.keys(grouped).sort(
     (a, b) => (categoryOrder.indexOf(a) === -1 ? 99 : categoryOrder.indexOf(a)) - (categoryOrder.indexOf(b) === -1 ? 99 : categoryOrder.indexOf(b)),
   );
+
+  const allKeys = settings.map((s) => s.key);
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
@@ -181,33 +177,205 @@ function AdminSettingsView() {
             />
           ))}
 
-          <AuditLogCard entries={auditData?.entries ?? []} />
+          <AuditLogCard allKeys={allKeys} />
         </div>
       )}
     </VendorShell>
   );
 }
 
-function AuditLogCard({ entries }: { entries: PlatformSettingAuditEntry[] }) {
+const TEST_SERVICE_FOR_CATEGORY: Record<string, "sentry" | "paystack" | "stripe" | "smtp" | undefined> = {
+  monitoring: "sentry",
+  payments: "paystack", // also "stripe" — both buttons rendered below
+  email: "smtp",
+};
+
+function CategoryTestButtons({ category }: { category: string }) {
+  const services: Array<{ id: "sentry" | "paystack" | "stripe" | "smtp"; label: string }> = [];
+  if (category === "monitoring") services.push({ id: "sentry", label: "Test Sentry" });
+  if (category === "payments") {
+    services.push({ id: "paystack", label: "Test Paystack" });
+    services.push({ id: "stripe", label: "Test Stripe" });
+  }
+  if (category === "email") services.push({ id: "smtp", label: "Test SMTP" });
+  if (services.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {services.map((s) => (
+        <TestServiceButton key={s.id} service={s.id} label={s.label} />
+      ))}
+    </div>
+  );
+}
+// reference to silence unused-warning if categories without tests appear
+void TEST_SERVICE_FOR_CATEGORY;
+
+function TestServiceButton({
+  service,
+  label,
+}: {
+  service: "sentry" | "paystack" | "stripe" | "smtp";
+  label: string;
+}) {
+  const testFn = useServerFn(testPlatformService);
+  const mutation = useMutation({
+    mutationFn: () => testFn({ data: { service } }),
+    onSuccess: (result) => {
+      if (result.ok) {
+        toast.success(result.message, { description: result.detail });
+      } else {
+        toast.error(result.message, { description: result.detail });
+      }
+    },
+    onError: (err) => toast.error(`Test failed: ${(err as Error).message}`),
+  });
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-7 gap-1 text-xs"
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+    >
+      {mutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3 w-3" />}
+      {label}
+    </Button>
+  );
+}
+
+function AuditLogCard({ allKeys }: { allKeys: string[] }) {
+  const fetchAudit = useServerFn(getPlatformAudit);
+  const exportFn = useServerFn(exportPlatformAuditCsv);
+
+  const [keyFilter, setKeyFilter] = useState<string>("__all");
+  const [actionFilter, setActionFilter] = useState<string>("__all");
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  const filters = {
+    key: keyFilter === "__all" ? undefined : keyFilter,
+    action: actionFilter === "__all" ? undefined : (actionFilter as "insert" | "update" | "delete"),
+    from: from ? new Date(from).toISOString() : undefined,
+    to: to ? new Date(to).toISOString() : undefined,
+  };
+
+  const { data, isFetching } = useQuery({
+    queryKey: ["platform-settings-audit", { ...filters, page, pageSize }],
+    queryFn: () => fetchAudit({ data: { ...filters, page, pageSize } }),
+  });
+
+  const entries: PlatformSettingAuditEntry[] = data?.entries ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const resetPage = (fn: () => void) => () => {
+    fn();
+    setPage(1);
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await exportFn({ data: filters });
+      const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `platform-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${res.count} audit entries`);
+    } catch (err) {
+      toast.error(`Export failed: ${(err as Error).message}`);
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <History className="h-5 w-5" />
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <History className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Audit Log</CardTitle>
+              <CardDescription className="text-xs">
+                Changes to platform settings (secret values are never recorded)
+              </CardDescription>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-base">Audit Log</CardTitle>
-            <CardDescription className="text-xs">
-              Recent changes to platform settings (secret values are never recorded)
-            </CardDescription>
-          </div>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={handleExport}>
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
         </div>
       </CardHeader>
-      <CardContent>
-        {entries.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No changes recorded yet.</p>
-        ) : (
+      <CardContent className="space-y-3">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <Label className="text-[11px]">Key</Label>
+            <Select value={keyFilter} onValueChange={resetPage(() => setKeyFilter)}>
+              <SelectTrigger className="mt-1 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">All keys</SelectItem>
+                {allKeys.map((k) => (
+                  <SelectItem key={k} value={k} className="font-mono text-xs">
+                    {k}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {/* fallback: above onValueChange wraps a setter into resetPage; replace below */}
+          </div>
+          <div>
+            <Label className="text-[11px]">Action</Label>
+            <Select value={actionFilter} onValueChange={(v) => { setActionFilter(v); setPage(1); }}>
+              <SelectTrigger className="mt-1 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">All actions</SelectItem>
+                <SelectItem value="insert">Insert</SelectItem>
+                <SelectItem value="update">Update</SelectItem>
+                <SelectItem value="delete">Delete</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-[11px]">From</Label>
+            <Input
+              type="date"
+              value={from}
+              onChange={(e) => { setFrom(e.target.value); setPage(1); }}
+              className="mt-1 h-8 text-xs"
+            />
+          </div>
+          <div>
+            <Label className="text-[11px]">To</Label>
+            <Input
+              type="date"
+              value={to}
+              onChange={(e) => { setTo(e.target.value); setPage(1); }}
+              className="mt-1 h-8 text-xs"
+            />
+          </div>
+        </div>
+
+        {isFetching && (
+          <p className="text-xs text-muted-foreground">Loading…</p>
+        )}
+
+        {!isFetching && entries.length === 0 && (
+          <p className="py-4 text-center text-xs text-muted-foreground">No matching changes.</p>
+        )}
+
+        {entries.length > 0 && (
           <ul className="divide-y divide-border">
             {entries.map((e) => (
               <li key={e.id} className="py-2.5 text-xs">
@@ -242,6 +410,32 @@ function AuditLogCard({ entries }: { entries: PlatformSettingAuditEntry[] }) {
             ))}
           </ul>
         )}
+
+        <div className="flex items-center justify-between border-t border-border pt-2">
+          <p className="text-[11px] text-muted-foreground">
+            Page {page} of {totalPages} · {total} total
+          </p>
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
@@ -261,14 +455,17 @@ function CategoryCard({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            {meta.icon}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              {meta.icon}
+            </div>
+            <div>
+              <CardTitle className="text-base">{meta.label}</CardTitle>
+              <CardDescription className="text-xs">{meta.description}</CardDescription>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-base">{meta.label}</CardTitle>
-            <CardDescription className="text-xs">{meta.description}</CardDescription>
-          </div>
+          <CategoryTestButtons category={category} />
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

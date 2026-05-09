@@ -1,13 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { VendorShell } from "@/components/vendor-shell";
+import { useAuth } from "@/auth/AuthProvider";
 import {
   getPlatformSettings,
   updatePlatformSetting,
   addPlatformSetting,
+  getPlatformAudit,
   type PlatformSetting,
+  type PlatformSettingAuditEntry,
 } from "@/lib/platform-settings.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -49,6 +52,8 @@ import {
   Settings,
   CheckCircle2,
   AlertCircle,
+  History,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -66,7 +71,44 @@ const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; desc
 };
 
 function VendorSettingsPage() {
+  const { hasRole, loading: authLoading, user } = useAuth();
+  const isAdmin = hasRole("admin");
+
+  if (authLoading) {
+    return (
+      <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </VendorShell>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return (
+      <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
+        <div className="mx-auto max-w-md rounded-lg border border-border bg-card p-8 text-center">
+          <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
+          <h2 className="mt-3 text-lg font-semibold">Admins only</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Platform API keys can only be viewed and changed by admin users.
+          </p>
+          {!user && (
+            <Link to="/login" className="mt-4 inline-block text-sm font-medium text-primary underline-offset-4 hover:underline">
+              Sign in
+            </Link>
+          )}
+        </div>
+      </VendorShell>
+    );
+  }
+
+  return <AdminSettingsView />;
+}
+
+function AdminSettingsView() {
   const fetchSettings = useServerFn(getPlatformSettings);
+  const fetchAudit = useServerFn(getPlatformAudit);
   const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -74,9 +116,13 @@ function VendorSettingsPage() {
     queryFn: () => fetchSettings(),
   });
 
+  const { data: auditData } = useQuery({
+    queryKey: ["platform-settings-audit"],
+    queryFn: () => fetchAudit({ data: { limit: 25 } }),
+  });
+
   const settings = data?.settings ?? [];
 
-  // Group by category
   const grouped = settings.reduce<Record<string, PlatformSetting[]>>((acc, s) => {
     (acc[s.category] ??= []).push(s);
     return acc;
@@ -86,6 +132,11 @@ function VendorSettingsPage() {
   const sortedCategories = Object.keys(grouped).sort(
     (a, b) => (categoryOrder.indexOf(a) === -1 ? 99 : categoryOrder.indexOf(a)) - (categoryOrder.indexOf(b) === -1 ? 99 : categoryOrder.indexOf(b)),
   );
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+    queryClient.invalidateQueries({ queryKey: ["platform-settings-audit"] });
+  };
 
   return (
     <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
@@ -111,7 +162,7 @@ function VendorSettingsPage() {
             <p className="text-sm text-muted-foreground">
               {settings.length} key{settings.length !== 1 ? "s" : ""} configured
             </p>
-            <AddKeyDialog onAdded={() => queryClient.invalidateQueries({ queryKey: ["platform-settings"] })} />
+            <AddKeyDialog onAdded={refresh} />
           </div>
 
           {sortedCategories.map((cat) => (
@@ -119,12 +170,73 @@ function VendorSettingsPage() {
               key={cat}
               category={cat}
               settings={grouped[cat]!}
-              onUpdated={() => queryClient.invalidateQueries({ queryKey: ["platform-settings"] })}
+              onUpdated={refresh}
             />
           ))}
+
+          <AuditLogCard entries={auditData?.entries ?? []} />
         </div>
       )}
     </VendorShell>
+  );
+}
+
+function AuditLogCard({ entries }: { entries: PlatformSettingAuditEntry[] }) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <History className="h-5 w-5" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Audit Log</CardTitle>
+            <CardDescription className="text-xs">
+              Recent changes to platform settings (secret values are never recorded)
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {entries.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No changes recorded yet.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {entries.map((e) => (
+              <li key={e.id} className="py-2.5 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[10px] uppercase">{e.action}</Badge>
+                    <span className="font-mono font-semibold">{e.key}</span>
+                    {e.is_secret && <Badge variant="outline" className="text-[10px]">Secret</Badge>}
+                  </div>
+                  <span className="text-muted-foreground">
+                    {new Date(e.changed_at).toLocaleString()}
+                  </span>
+                </div>
+                <div className="mt-1 text-muted-foreground">
+                  Changed: {e.changed_fields.join(", ") || "—"}
+                  {" · "}
+                  by: <span className="font-mono">{e.changed_by ? e.changed_by.slice(0, 8) : "system"}</span>
+                </div>
+                {!e.is_secret && (e.old_value || e.new_value) && e.changed_fields.includes("value") && (
+                  <div className="mt-1 font-mono text-[11px] text-muted-foreground/80">
+                    <span className="line-through">{e.old_value || "∅"}</span>
+                    {" → "}
+                    <span className="text-foreground">{e.new_value || "∅"}</span>
+                  </div>
+                )}
+                {e.is_secret && e.changed_fields.includes("value") && (
+                  <div className="mt-1 text-[11px] text-muted-foreground/80">
+                    Secret value changed ({e.old_value_length ?? 0} → {e.new_value_length ?? 0} chars)
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

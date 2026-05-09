@@ -2,7 +2,16 @@
  * Lightweight Sentry error reporter for Workers runtime.
  * Uses Sentry's HTTP API directly — no SDK needed.
  * Includes per-route rate limiting to avoid flooding.
+ *
+ * The DSN is read from platform_settings at runtime so admins can rotate
+ * it via the dashboard without redeploying. Falls back to SENTRY_DSN env.
  */
+import { getPlatformValue } from "./platform-settings.server";
+
+async function resolveDsn(): Promise<string> {
+  const fromDb = await getPlatformValue("SENTRY_DSN");
+  return fromDb || process.env.SENTRY_DSN || "";
+}
 
 interface SentryEvent {
   event_id: string;
@@ -126,7 +135,7 @@ export async function reportToSentry(
   extras: { requestId: string; errorCode: string; statusCode?: number },
 ): Promise<SentryReportResult> {
   const eventId = generateEventId();
-  const dsn = process.env.SENTRY_DSN;
+  const dsn = await resolveDsn();
 
   if (!dsn) {
     return { eventId, sent: false, rateLimited: false };
@@ -198,8 +207,8 @@ export async function reportToSentry(
 /**
  * Build a Sentry issue URL from a DSN and event ID.
  */
-export function sentryEventUrl(eventId: string): string | null {
-  const dsn = process.env.SENTRY_DSN;
+export async function sentryEventUrl(eventId: string): Promise<string | null> {
+  const dsn = await resolveDsn();
   if (!dsn) return null;
   const parsed = parseDsn(dsn);
   if (!parsed) return null;

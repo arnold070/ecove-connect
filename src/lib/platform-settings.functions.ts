@@ -117,8 +117,22 @@ export const addPlatformSetting = createServerFn({ method: "POST" })
 
 const auditSchema = z.object({
   key: z.string().max(100).optional(),
-  limit: z.number().min(1).max(200).optional(),
+  action: z.enum(["insert", "update", "delete"]).optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  page: z.number().int().min(1).max(10000).optional(),
+  pageSize: z.number().int().min(1).max(200).optional(),
 });
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function buildAuditQuery(supabase: any, data: z.infer<typeof auditSchema>) {
+  let q = supabase.from("platform_settings_audit").select("*", { count: "exact" });
+  if (data.key) q = q.eq("key", data.key);
+  if (data.action) q = q.eq("action", data.action);
+  if (data.from) q = q.gte("changed_at", data.from);
+  if (data.to) q = q.lte("changed_at", data.to);
+  return q.order("changed_at", { ascending: false });
+}
 
 export const getPlatformAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -127,21 +141,60 @@ export const getPlatformAudit = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    let q = supabase
-      .from("platform_settings_audit")
-      .select("*")
-      .order("changed_at", { ascending: false })
-      .limit(data.limit ?? 50);
-    if (data.key) q = q.eq("key", data.key);
+    const pageSize = data.pageSize ?? 25;
+    const page = data.page ?? 1;
+    const fromIdx = (page - 1) * pageSize;
+    const toIdx = fromIdx + pageSize - 1;
 
-    const { data: rows, error } = await q;
+    const q = await buildAuditQuery(supabase, data);
+    const { data: rows, count, error } = await q.range(fromIdx, toIdx);
     if (error) throw new Error(error.message);
 
-    // Defensive: never expose actual value text for secret rows.
     const entries = (rows as PlatformSettingAuditEntry[]).map((r) => ({
       ...r,
       old_value: r.is_secret ? null : r.old_value,
       new_value: r.is_secret ? null : r.new_value,
     }));
-    return { entries };
+    return { entries, total: count ?? entries.length, page, pageSize };
   });
+
+function csvEscape(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+export const exportPlatformAuditCsv = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => auditSchema.parse(data ?? {}))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const q = await buildAuditQuery(supabase, data);
+    const { data: rows, error } = await q.limit(10000);
+    if (error) throw new Error(error.message);
+
+    const headers = [
+      "changed_at","key","action","is_secret","changed_by",
+      "changed_fields","old_value","new_value","old_value_length","new_value_length",
+    ];
+    const lines = [headers.join(",")];
+    for (const r of rows as PlatformSettingAuditEntry[]) {
+      lines.push([
+        r.changed_at,
+        r.key,
+        r.action,
+        r.is_secret,
+        r.changed_by ?? "",
+        (r.changed_fields ?? []).join("|"),
+        r.is_secret ? "***MASKED***" : (r.old_value ?? ""),
+        r.is_secret ? "***MASKED***" : (r.new_value ?? ""),
+        r.old_value_length ?? "",
+        r.new_value_length ?? "",
+      ].map(csvEscape).join(","));
+    }
+    return { csv: lines.join("\n"), count: rows?.length ?? 0 };
+  });
+

@@ -124,14 +124,24 @@ function HeroSection() {
         </div>
         <ul>
           {storefrontCategories.map((c) => (
-            <li key={c.name}>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 border-b border-border px-4 py-2 text-left text-[13px] text-foreground transition last:border-0 hover:bg-primary/10 hover:text-primary"
-              >
+            <li key={c.slug} className="border-b border-border last:border-0">
+              <div className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-foreground">
                 <span className="text-base">{c.icon}</span>
                 {c.name}
-              </button>
+              </div>
+              <ul className="pb-2">
+                {c.subcategories.map((s) => (
+                  <li key={s.slug}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-6 py-1.5 text-left text-xs text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+                    >
+                      <span>{s.icon}</span>
+                      {s.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </li>
           ))}
         </ul>
@@ -243,20 +253,36 @@ function CategoryGrid() {
   return (
     <section className="mb-6">
       <SectionTitle title="Shop by category" />
-      <div className="grid grid-cols-3 gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-6">
+      <div className="grid gap-4 rounded-xl border border-border bg-card p-4 shadow-sm md:grid-cols-3">
         {storefrontCategories.map((c) => (
-          <button
-            key={c.name}
-            type="button"
-            className="group flex flex-col items-center gap-2 rounded-lg p-3 transition hover:bg-muted"
+          <div
+            key={c.slug}
+            className="rounded-lg border border-border bg-background p-4 transition hover:shadow-md"
           >
-            <span
-              className={`flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br ${c.tone} text-2xl transition group-hover:scale-110`}
-            >
-              {c.icon}
-            </span>
-            <span className="text-center text-xs font-medium text-foreground">{c.name}</span>
-          </button>
+            <div className="flex items-center gap-3">
+              <span
+                className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${c.tone} text-2xl`}
+              >
+                {c.icon}
+              </span>
+              <div>
+                <h4 className="font-display text-base font-bold text-foreground">{c.name}</h4>
+                <p className="text-xs text-muted-foreground">{c.subcategories.length} subcategories</p>
+              </div>
+            </div>
+            <ul className="mt-3 flex flex-wrap gap-1.5">
+              {c.subcategories.map((s) => (
+                <li key={s.slug}>
+                  <button
+                    type="button"
+                    className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-foreground transition hover:border-primary hover:bg-primary/10 hover:text-primary"
+                  >
+                    {s.icon} {s.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
       </div>
     </section>

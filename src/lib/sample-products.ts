@@ -29,17 +29,53 @@ export const sampleProducts: SampleProduct[] = [
   { id: 12, name: "Wilson Tennis Racket Pro", price: 22000, old: 30000, icon: "🎾", category: "Sports", discount: 27, rating: 4.7, reviews: 89, badge: "SALE" },
 ];
 
-export const storefrontCategories = [
-  { name: "Phones & Tablets", icon: "📱", tone: "from-blue-100 to-blue-200" },
-  { name: "Electronics", icon: "📺", tone: "from-purple-100 to-purple-200" },
-  { name: "Computing", icon: "💻", tone: "from-cyan-100 to-cyan-200" },
-  { name: "Fashion", icon: "👗", tone: "from-pink-100 to-pink-200" },
-  { name: "Home & Kitchen", icon: "🏠", tone: "from-amber-100 to-amber-200" },
-  { name: "Beauty & Health", icon: "💄", tone: "from-rose-100 to-rose-200" },
-  { name: "Baby Products", icon: "👶", tone: "from-yellow-100 to-yellow-200" },
-  { name: "Sports", icon: "⚽", tone: "from-emerald-100 to-emerald-200" },
-  { name: "Groceries", icon: "🛒", tone: "from-lime-100 to-lime-200" },
-  { name: "Automotive", icon: "🚗", tone: "from-slate-100 to-slate-200" },
-  { name: "Gaming", icon: "🎮", tone: "from-indigo-100 to-indigo-200" },
-  { name: "Books", icon: "📚", tone: "from-orange-100 to-orange-200" },
+export interface StorefrontCategory {
+  name: string;
+  slug: string;
+  icon: string;
+  tone: string;
+  subcategories: { name: string; slug: string; icon: string }[];
+}
+
+export const storefrontCategories: StorefrontCategory[] = [
+  {
+    name: "Gadgets",
+    slug: "gadgets",
+    icon: "📱",
+    tone: "from-blue-100 to-blue-200",
+    subcategories: [
+      { name: "Phones & Tablets", slug: "phones-tablets", icon: "📱" },
+      { name: "Computing", slug: "computing", icon: "💻" },
+      { name: "Electronics & TV", slug: "electronics-tv", icon: "📺" },
+      { name: "Gaming", slug: "gaming", icon: "🎮" },
+      { name: "Audio & Accessories", slug: "audio-accessories", icon: "🎧" },
+    ],
+  },
+  {
+    name: "Fashion",
+    slug: "fashion",
+    icon: "👗",
+    tone: "from-pink-100 to-pink-200",
+    subcategories: [
+      { name: "Men's Fashion", slug: "mens-fashion", icon: "👔" },
+      { name: "Women's Fashion", slug: "womens-fashion", icon: "👗" },
+      { name: "Kids & Babies", slug: "kids-fashion", icon: "🧒" },
+      { name: "Shoes & Sneakers", slug: "shoes", icon: "👟" },
+      { name: "Bags & Accessories", slug: "bags-accessories", icon: "👜" },
+    ],
+  },
+  {
+    name: "Services",
+    slug: "services",
+    icon: "🛠️",
+    tone: "from-emerald-100 to-emerald-200",
+    subcategories: [
+      { name: "Repairs", slug: "repairs", icon: "🔧" },
+      { name: "Delivery & Logistics", slug: "delivery", icon: "🚚" },
+      { name: "Installation", slug: "installation", icon: "🛠️" },
+      { name: "Consulting", slug: "consulting", icon: "💼" },
+      { name: "Cleaning", slug: "cleaning", icon: "🧹" },
+    ],
+  },
 ];
+

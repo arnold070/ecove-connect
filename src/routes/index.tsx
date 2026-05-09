@@ -124,14 +124,24 @@ function HeroSection() {
         </div>
         <ul>
           {storefrontCategories.map((c) => (
-            <li key={c.name}>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 border-b border-border px-4 py-2 text-left text-[13px] text-foreground transition last:border-0 hover:bg-primary/10 hover:text-primary"
-              >
+            <li key={c.slug} className="border-b border-border last:border-0">
+              <div className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-foreground">
                 <span className="text-base">{c.icon}</span>
                 {c.name}
-              </button>
+              </div>
+              <ul className="pb-2">
+                {c.subcategories.map((s) => (
+                  <li key={s.slug}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 px-6 py-1.5 text-left text-xs text-muted-foreground transition hover:bg-primary/10 hover:text-primary"
+                    >
+                      <span>{s.icon}</span>
+                      {s.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </li>
           ))}
         </ul>

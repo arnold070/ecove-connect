@@ -270,11 +270,6 @@ function AuditLogCard({ allKeys }: { allKeys: string[] }) {
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const resetPage = (fn: () => void) => () => {
-    fn();
-    setPage(1);
-  };
-
   const handleExport = async () => {
     try {
       const res = await exportFn({ data: filters });
@@ -318,7 +313,7 @@ function AuditLogCard({ allKeys }: { allKeys: string[] }) {
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Label className="text-[11px]">Key</Label>
-            <Select value={keyFilter} onValueChange={resetPage(() => setKeyFilter)}>
+            <Select value={keyFilter} onValueChange={(v) => { setKeyFilter(v); setPage(1); }}>
               <SelectTrigger className="mt-1 h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -331,7 +326,6 @@ function AuditLogCard({ allKeys }: { allKeys: string[] }) {
                 ))}
               </SelectContent>
             </Select>
-            {/* fallback: above onValueChange wraps a setter into resetPage; replace below */}
           </div>
           <div>
             <Label className="text-[11px]">Action</Label>

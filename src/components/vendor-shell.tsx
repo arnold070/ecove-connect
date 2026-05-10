@@ -102,7 +102,7 @@ export function VendorShell({
   secondaryAction,
 }: VendorShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, hasRole } = useAuth();
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   const initial = (user?.email ?? "V")[0]!.toUpperCase();
@@ -130,12 +130,17 @@ export function VendorShell({
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3">
-          {NAV_SECTIONS.map((section) => (
+          {NAV_SECTIONS.map((section) => {
+            const visibleItems = section.items.filter(
+              (i) => !i.requireRole || hasRole(i.requireRole),
+            );
+            if (visibleItems.length === 0) return null;
+            return (
             <div key={section.title} className="mb-2">
               <p className="px-5 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-sidebar-foreground/30">
                 {section.title}
               </p>
-              {section.items.map((item) => {
+              {visibleItems.map((item) => {
                 const active =
                   item.to === "/vendor" ? path === "/vendor" : path.startsWith(item.to);
                 return (

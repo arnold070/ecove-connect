@@ -1,120 +1,90 @@
+# Marketplace Core: Vendors → Products → Checkout → Payouts
 
+Four delicate feature areas, built in one sequence so each phase unlocks the next. Every phase ships DB schema + RLS, server functions, and admin/vendor UI.
 
-# Ecove Multi-Vendor Marketplace — Build Plan
+## Phase 1 — Vendor onboarding & KYC
 
-A Jumia/Konga-style Nigerian marketplace with three roles (Customer, Vendor, Admin), built on TanStack Start + Supabase + edge deployment. Brand: orange `#f68b1f`, charcoal `#1a1a1a`, Sora + Plus Jakarta Sans, lowercase "ecove" wordmark, Naira (₦) throughout.
+**DB (`db/0006_vendors_kyc.sql`)**
+- `vendors` (id, user_id unique, business_name, slug, phone, country, status: `draft|pending|approved|rejected|suspended`, rejection_reason, approved_at/by, created_at)
+- `vendor_kyc_documents` (id, vendor_id, doc_type: `id_front|id_back|business_reg|tax_cert|address_proof`, storage_path, status, reviewer_note)
+- Storage bucket `vendor-kyc` (private), RLS: vendor reads/writes own; admins read all
+- RLS on `vendors`: owner can read/update draft; admin full access; public can read approved (name, slug only via view)
+- `vendor_public` view exposing only safe fields
 
-## How this build will be sequenced
+**Server fns (`src/lib/vendors.functions.ts`)**
+- `getMyVendor`, `upsertVendorDraft`, `submitVendorForReview`, `uploadKycDocument` (signed URL), `listPendingVendors` (admin), `approveVendor` / `rejectVendor` (admin, writes audit row)
 
-You asked for everything at once. I'll deliver it in **one large initial build** covering the full surface area, then we iterate. Realistically the first build will have:
-- ✅ All database tables + RLS + seed data
-- ✅ All routes/pages scaffolded with the correct layouts and brand styling
-- ✅ Auth (3 roles), product browsing, cart, checkout, vendor product CRUD, admin moderation — all functional end-to-end
-- 🟡 Paystack integrated in **test mode** (you'll provide a test secret key when prompted)
-- 🟡 Some admin analytics charts, advanced filters, and reports will be functional but minimal — we'll polish in follow-ups
-- 🟡 Background jobs run as **pg_cron** (flash sale expiry, low stock alerts) — not `setInterval`
-- 🟡 Rate limiting via Postgres counters (lighter than Redis but works on edge)
+**UI**
+- `/vendor/onboarding` — multi-step form (business info → KYC docs upload → review & submit), status banner
+- `/vendor/index` gated: shows onboarding CTA until approved
+- `/vendor/admin/approvals` — admin queue with doc preview, approve/reject with reason
 
-## Tech foundation
+## Phase 2 — Product listing & moderation
 
-- **Framework:** TanStack Start (already set up)
-- **DB + Auth + Storage + Email:** Lovable Cloud (Supabase under the hood)
-- **State:** Zustand (cart, wishlist), TanStack Query (server data)
-- **Forms:** React Hook Form + Zod
-- **Payments:** Paystack via REST API + webhook server route (HMAC-SHA512 verified)
-- **Background jobs:** pg_cron
-- **Fonts:** Sora + Plus Jakarta Sans via Google Fonts
+**DB (`db/0007_products.sql`)**
+- `products` (id, vendor_id, title, slug, description, price_kobo, currency, category_id, subcategory, stock, status: `draft|pending|approved|rejected|archived`, rejection_reason, created_at)
+- `product_images` (id, product_id, storage_path, sort_order, is_primary)
+- Reuse existing `product-images` bucket
+- RLS: vendor CRUD own drafts/pending; public reads only `status='approved'`; admin full
 
-## Brand & design system
+**Server fns (`src/lib/products.functions.ts`)**
+- `createProduct`, `updateProductDraft`, `submitProductForReview`, `archiveProduct`
+- `addProductImage` (signed URL), `reorderProductImages`
+- `listMyProducts(status?)`, `listPendingProducts` (admin), `approveProduct` / `rejectProduct`
+- Public: `listApprovedProducts({category, q, page})`, `getProductBySlug`
 
-- Orange `#f68b1f`, dark accent `#d4720e`, charcoal `#1a1a1a`, success green `#1e8a44`
-- All colors as HSL tokens in `index.css` and Tailwind theme
-- Lowercase wordmark logo: "eco" white + "ve" orange
-- Money formatter: `₦1,234,567.89`
-- Date formatter: `Jun 15, 2025`
-- Order status badges with the specified color scheme
-- Skeleton loaders on every async section, react-hot-toast for mutations
+**UI**
+- `/vendor/products/new` — full form with image upload + drag-reorder
+- `/vendor/products` — tabs draft / pending / live / rejected
+- `/vendor/admin/products/pending` — moderation queue
+- Storefront `/` and `/p/$slug` swap from sample data → DB-backed approved products
 
-## Database (Supabase + RLS)
+## Phase 3 — Cart, checkout & Paystack payments
 
-All ~25 tables from your spec, plus:
-- `user_roles` table with `app_role` enum (`customer`, `vendor`, `admin`, `super_admin`) — roles stored separately from profiles for security
-- `has_role()` security-definer function used by all RLS policies
-- RLS policies scoped per role (customer sees own data, vendor sees own products/orders, admin sees all)
-- Triggers for: auto-create profile on signup, auto-generate order numbers (`ECO-YYMMDD-XXXXXX` using `gen_random_bytes`), auto-update `updated_at`
-- Seed: 1 admin user, 12 categories with emoji icons, global 10% commission rule, default site settings
+**DB (`db/0008_orders.sql`)**
+- `carts` (id, user_id, created_at) + `cart_items` (cart_id, product_id, qty, unit_price_kobo)
+- `orders` (id, buyer_id, status: `pending|paid|fulfilled|delivered|cancelled|refunded`, total_kobo, currency, paystack_ref, paid_at, shipping_address jsonb, created_at)
+- `order_items` (order_id, product_id, vendor_id, qty, unit_price_kobo, subtotal_kobo, status per-item)
+- RLS: buyer reads own orders; vendor reads order_items where they're the vendor; admin full
 
-## Authentication
+**Server fns + routes**
+- `src/lib/cart.functions.ts`: `getMyCart`, `addToCart`, `updateQty`, `removeItem`, `clearCart`
+- `src/lib/checkout.functions.ts`: `initializeCheckout` → creates pending order, calls Paystack `/transaction/initialize` (key from `platform_settings`), returns authorization_url + reference
+- `src/routes/api/public/paystack-webhook.ts` — verifies `x-paystack-signature` HMAC-SHA512 with secret from `platform_settings`, marks order `paid`, decrements stock
+- Idempotency: dedupe by `paystack_ref`
 
-- **Customer:** `/login`, `/register`, `/forgot-password`, `/reset-password` — Supabase email/password with email verification before checkout
-- **Vendor:** `/vendor/login`, `/vendor/register` (3-step application form: Business Info → Bank Details → Terms), pending status until admin approves
-- **Admin:** `/admin` login, role-gated via `has_role()` check
-- Guest checkout supported (email + name + phone collected)
-- Route guards via TanStack `_authenticated` and role-based pathless layouts (`_customer`, `_vendor`, `_admin`)
+**UI**
+- `/cart`, `/checkout` (address + summary), `/checkout/success?ref=...` (verifies & shows receipt)
+- Header cart badge
 
-## Storefront pages
+## Phase 4 — Order lifecycle & payouts
 
-Homepage with all 10 sections (top bar, orange nav, category strip, trust strip, hero with category sidebar + carousel + 3 promo cards, category grid, flash sales w/ countdown, featured grid, vendor CTA, footer), Search with sidebar filters, Product Detail with gallery + variants + reviews + tabs, Vendor Store, Cart, Checkout (Paystack), Order Confirmation, Track Order with step progress, My Account (4 tabs), Order Detail, Category pages, static pages (Privacy, Returns, Vendor Policies).
+**DB (`db/0009_payouts.sql`)**
+- Add `order_items.fulfillment_status: pending|shipped|delivered|cancelled`, `tracking_ref`
+- `vendor_ledger` (vendor_id, order_item_id, type: `sale|refund|payout|fee`, amount_kobo, balance_after, created_at)
+- `payout_requests` (vendor_id, amount_kobo, status: `requested|approved|paid|rejected`, bank_details jsonb encrypted, processed_at/by, paystack_transfer_ref)
+- DB function `vendor_balance(vendor_id)` summing ledger
+- Trigger: on `orders.status='paid'` → insert `sale` ledger rows for each item (minus platform fee from `platform_settings.platform_fee_bps`)
 
-## Vendor dashboard
+**Server fns**
+- Vendor: `markItemShipped`, `markItemDelivered`, `getMyEarnings`, `requestPayout`
+- Admin: `listPayoutRequests`, `approvePayout` (calls Paystack Transfer API), `rejectPayout`
+- Buyer: `confirmDelivery`, `requestRefund`
 
-`/vendor/dashboard` with charcoal sidebar — Overview, Products (CRUD with image upload, variants, specs, flash sale toggle), Orders (with ship/deliver actions), Earnings (with payout requests), Inventory (stock levels), Reports (revenue chart), My Store (banner/logo edit), Profile (bank details), Settings.
+**UI**
+- `/vendor/orders` — list of order_items for this vendor with status transitions
+- `/vendor/earnings` — balance, ledger, "Request payout" dialog
+- `/vendor/admin/payouts` — review queue
+- `/account/orders` — buyer order history with confirm/refund
 
-## Admin panel
+## Cross-cutting
 
-`/admin` with charcoal sidebar — Dashboard with stats + charts, Vendors (approve/reject/suspend), Products (moderation queue), Orders, Payouts (approve/reject/mark-paid with proper balance accounting), Commissions (global/category/vendor rules), Categories, Banners, Coupons, Reviews moderation, Customers, Analytics, Settings.
+- All admin actions write to existing `platform_settings_audit` pattern (extend with generic `admin_audit_log`)
+- All money in **kobo** (NGN minor units), formatted via existing `currency.ts`
+- Use existing `requireSupabaseAuth` + `assertAdmin` patterns
+- Paystack/Stripe keys read at runtime via existing `getPlatformValue`
+- Tests: extend `tests/` with one happy-path integration per phase (cart→checkout→webhook→ledger)
 
-## Server logic (server functions + server routes)
+## Execution order
 
-- Server functions for all authenticated mutations (cart sync, checkout init, vendor product CRUD, admin actions)
-- Server routes at `/api/webhooks/paystack` for HMAC-verified webhooks (idempotency via Postgres unique constraint on event ID)
-- Server route at `/api/payments/paystack` to initialize transactions
-- Server route at `/api/health`
-- Image upload via Supabase Storage server function
-- Commission resolution function with the 5-level priority you specified
-- Order number generation using `crypto.getRandomValues()`
-
-## Payment flow
-
-1. Checkout server fn validates cart, stock, email verification, coupon → creates `pending/unpaid` order
-2. Calls Paystack `initialize` → returns `authorization_url`
-3. Customer redirected to Paystack hosted checkout (test mode)
-4. Webhook receives `charge.success` → HMAC verify → idempotency check → mark paid → decrement stock → credit `pendingBalance` per vendor → increment coupon usage → enqueue confirmation emails
-5. Customer lands on `/order/confirm`
-
-## Email notifications (Lovable Email)
-
-Welcome, email verification, password reset, order confirmation, vendor new-order alert (per-vendor only their items), order shipped, order delivered, vendor application approved/rejected, product approved/rejected, payout status updates. All as React Email templates with Ecove branding.
-
-## Background jobs (pg_cron)
-
-- Every 5 min: expire flash sales
-- Every 1 hour: low-stock vendor notifications
-- Every 12 hours: recalc vendor average ratings
-- (Sessions handled by Supabase Auth automatically)
-
-## Security
-
-- Roles in separate table with `has_role()` SECURITY DEFINER
-- HMAC-SHA512 verification on Paystack webhooks
-- Webhook idempotency via Postgres
-- Postgres-based rate limiting on login, register, forgot-password, checkout, coupon validate, review submit, image upload
-- Zod validation on every server function input
-- Email verification gate on logged-in user checkout
-- Role-based route guards + RLS as defense in depth
-
-## What you'll need to provide later
-
-- **Paystack test secret key** — I'll prompt you for this when wiring up the payment integration
-- **Email domain** — for branded emails (optional; default Lovable sender works for testing)
-- **Cloudinary** is replaced by Supabase Storage (no key needed)
-
-## Out of scope for v1 (we'll add after the foundation works)
-
-- Flutterwave (Paystack only for v1; Flutterwave is a quick add later)
-- WhatsApp chat buttons (placeholder links only)
-- Advanced analytics charts (basic ones in v1)
-- Fraud detection (`FraudFlag` table created, surfacing UI in a follow-up)
-- Live typeahead search (basic search in v1, debounced typeahead added next)
-- Mobile hamburger polish (responsive works, polish pass after)
-
+I will build **Phase 1 in this turn** (vendor onboarding + KYC end-to-end), then ask you to confirm before Phase 2, since each phase is itself substantial and you'll want to verify the UX before moving on.

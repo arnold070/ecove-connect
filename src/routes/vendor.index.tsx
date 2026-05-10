@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   TrendingUp,
   ShoppingBag,
@@ -11,10 +13,12 @@ import {
   ClipboardList,
   Boxes,
   Store,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { VendorShell } from "@/components/vendor-shell";
 import { formatNaira } from "@/lib/currency";
+import { getMyVendor } from "@/lib/vendors.functions";
 
 export const Route = createFileRoute("/vendor/")({
   component: VendorDashboardPage,
@@ -78,10 +82,17 @@ const PRODUCT_STATUS = [
 function VendorDashboardPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const fetchVendor = useServerFn(getMyVendor);
 
   useEffect(() => {
     if (!loading && !user) void navigate({ to: "/login" });
   }, [loading, user, navigate]);
+
+  const { data: vendorData } = useQuery({
+    queryKey: ["my-vendor"],
+    queryFn: () => fetchVendor(),
+    enabled: !!user,
+  });
 
   const greeting = useMemo(() => {
     const name = user?.email?.split("@")[0] ?? "vendor";
@@ -96,6 +107,9 @@ function VendorDashboardPage() {
     );
   }
 
+  const vendor = vendorData?.vendor;
+  const needsOnboarding = !vendor || vendor.status !== "approved";
+
   return (
     <VendorShell
       title="Vendor Dashboard"
@@ -103,6 +117,35 @@ function VendorDashboardPage() {
       primaryAction={{ label: "Add Product", to: "/vendor/products/new" }}
       secondaryAction={{ label: "Export" }}
     >
+      {needsOnboarding ? (
+        <div className="mb-6 flex flex-col gap-3 rounded-lg border border-primary/30 bg-primary/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
+            <div className="text-sm">
+              <p className="font-semibold text-foreground">
+                {!vendor
+                  ? "Complete your vendor onboarding to start selling"
+                  : vendor.status === "pending"
+                    ? "Your application is under review"
+                    : vendor.status === "rejected"
+                      ? "Your application was rejected — please update and resubmit"
+                      : "Finish setting up your vendor profile"}
+              </p>
+              <p className="text-muted-foreground">
+                We need a few business details and KYC documents before you can list products.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/vendor/onboarding"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
+          >
+            {vendor ? "Continue" : "Start"} onboarding
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      ) : null}
+
       {/* Notice */}
       <div className="mb-6 flex items-start gap-3 rounded-lg border border-warning/40 bg-warning/15 p-4 text-foreground">
         <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-foreground" />

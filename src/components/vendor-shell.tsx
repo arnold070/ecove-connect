@@ -165,7 +165,8 @@ export function VendorShell({
                 );
               })}
             </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="border-t border-sidebar-border p-4">

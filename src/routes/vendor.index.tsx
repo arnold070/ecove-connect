@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   TrendingUp,
   ShoppingBag,
@@ -11,10 +13,12 @@ import {
   ClipboardList,
   Boxes,
   Store,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 import { VendorShell } from "@/components/vendor-shell";
 import { formatNaira } from "@/lib/currency";
+import { getMyVendor } from "@/lib/vendors.functions";
 
 export const Route = createFileRoute("/vendor/")({
   component: VendorDashboardPage,

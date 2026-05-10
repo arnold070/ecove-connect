@@ -18,15 +18,18 @@ import {
   Menu,
   LogOut,
   Settings,
+  ShieldCheck,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/auth/AuthProvider";
+import { useAuth, type AppRole } from "@/auth/AuthProvider";
 
 export interface VendorNavLink {
   to: string;
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  requireRole?: AppRole;
 }
 
 const NAV_SECTIONS: { title: string; items: VendorNavLink[] }[] = [
@@ -34,8 +37,20 @@ const NAV_SECTIONS: { title: string; items: VendorNavLink[] }[] = [
     title: "Overview",
     items: [
       { to: "/vendor", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+      { to: "/vendor/onboarding", label: "Onboarding & KYC", icon: <ShieldCheck className="h-4 w-4" /> },
       { to: "/vendor/earnings", label: "Earnings & Payouts", icon: <Wallet className="h-4 w-4" /> },
       { to: "/vendor/store", label: "My Store Page", icon: <Store className="h-4 w-4" /> },
+    ],
+  },
+  {
+    title: "Admin",
+    items: [
+      {
+        to: "/vendor/admin/approvals",
+        label: "Vendor approvals",
+        icon: <Users className="h-4 w-4" />,
+        requireRole: "admin",
+      },
     ],
   },
   {

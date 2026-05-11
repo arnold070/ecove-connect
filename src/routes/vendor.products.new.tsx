@@ -1,395 +1,129 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useFieldArray, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ImagePlus, Plus, Trash2, X, Loader2, AlertTriangle } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import {
+  ImagePlus,
+  Plus,
+  Trash2,
+  Loader2,
+  AlertTriangle,
+  GripVertical,
+  Search,
+  Check,
+  ChevronsUpDown,
+  Send,
+  Save,
+} from "lucide-react";
 
 import { VendorShell } from "@/components/vendor-shell";
 import { useAuth } from "@/auth/AuthProvider";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { uniqueSlug } from "@/lib/slug";
-import { formatNaira, nairaToKobo } from "@/lib/currency";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import { nairaToKobo } from "@/lib/currency";
+import {
+  listCategories,
+  createProduct,
+  addProductImage,
+  reorderProductImages,
+  deleteProductImage,
+  addProductVariant,
+  submitProductForReview,
+  type CategoryNode,
+  type ProductImage,
+} from "@/lib/products.functions";
+import { getCloudinaryUploadSignature } from "@/lib/cloudinary.functions";
 
 export const Route = createFileRoute("/vendor/products/new")({
   component: NewProductPage,
   head: () => ({
-    meta: [{ title: "Add New Product — Vendor — ecove" }],
+    meta: [{ title: "Add new product — Vendor — ecove" }],
   }),
 });
 
-const HANDLING_TIMES = [
-  "Same day",
-  "1-2 business days",
-  "2-3 business days",
-  "3-5 business days",
-] as const;
-
 const variantSchema = z.object({
-  name: z.string().trim().max(60).optional().or(z.literal("")),
-  value: z.string().trim().max(60).optional().or(z.literal("")),
-  stock: z.coerce.number().int().min(0).optional(),
+  name: z.string().trim().min(1).max(120),
+  sku: z.string().trim().max(80).optional().or(z.literal("")),
+  price_naira: z.coerce.number().min(0).optional(),
+  stock: z.coerce.number().int().min(0),
+  attributes: z.string().trim().max(200).optional().or(z.literal("")),
 });
 
-const productSchema = z
-  .object({
-    title: z
-      .string()
-      .trim()
-      .min(3, "Product name must be at least 3 characters")
-      .max(160, "Keep the title under 160 characters"),
-    category_id: z.string().uuid({ message: "Select a category" }),
-    brand: z.string().trim().max(80).optional().or(z.literal("")),
-    short_description: z
-      .string()
-      .trim()
-      .min(10, "Add a short summary (≥10 chars)")
-      .max(120, "Keep the short description under 120 characters"),
-    description: z
-      .string()
-      .trim()
-      .min(20, "Add a fuller description (≥20 chars)")
-      .max(8000),
-    specifications: z.string().trim().max(4000).optional().or(z.literal("")),
-    tags: z.string().trim().max(400).optional().or(z.literal("")),
-    price_naira: z.coerce.number().positive("Price must be greater than 0"),
-    compare_at_naira: z.coerce.number().nonnegative().optional().or(z.literal("")),
-    stock: z.coerce.number().int().min(0, "Stock cannot be negative"),
-    low_stock_alert: z.coerce.number().int().min(0).optional().or(z.literal("")),
-    sku: z.string().trim().max(80).optional().or(z.literal("")),
-    weight_kg: z.coerce.number().min(0).optional().or(z.literal("")),
-    handling_time: z.string().min(1),
-    ships_from: z.string().trim().max(120).optional().or(z.literal("")),
-    free_shipping: z.boolean(),
-    variants: z.array(variantSchema),
-  })
-  .refine(
-    (d) =>
-      d.compare_at_naira === undefined ||
-      d.compare_at_naira === ("" as unknown as number) ||
-      Number(d.compare_at_naira) === 0 ||
-      Number(d.compare_at_naira) >= Number(d.price_naira),
-    {
-      path: ["compare_at_naira"],
-      message: "Compare-at price should be higher than the selling price",
-    },
-  );
+const productSchema = z.object({
+  title: z.string().trim().min(3).max(200),
+  description: z.string().trim().min(20).max(8000),
+  category_id: z.string().uuid({ message: "Pick a top-level category" }),
+  subcategory_id: z.string().uuid().optional().or(z.literal("")),
+  price_naira: z.coerce.number().positive("Price must be greater than 0"),
+  compare_at_naira: z.coerce.number().min(0).optional().or(z.literal("")),
+  stock: z.coerce.number().int().min(0),
+  sku: z.string().trim().max(80).optional().or(z.literal("")),
+  weight_kg: z.coerce.number().min(0).optional().or(z.literal("")),
+  variants: z.array(variantSchema),
+});
 
 type ProductFormValues = z.infer<typeof productSchema>;
 
-interface CategoryRow {
-  id: string;
-  name: string;
-}
+const MAX_IMAGES = 10;
+const MAX_BYTES = 8 * 1024 * 1024;
 
-interface VendorRow {
-  id: string;
-  store_name: string;
-  status: "pending" | "approved" | "suspended" | "rejected";
-  commission_bps: number;
-}
-
-interface PreviewImage {
-  id: string;
-  file: File;
-  url: string;
-}
-
-const MAX_IMAGES = 8;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// ---------------------------------------------------------------------------
 
 function NewProductPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, hasRole } = useAuth();
   const navigate = useNavigate();
 
-  const [categories, setCategories] = useState<CategoryRow[]>([]);
-  const [vendor, setVendor] = useState<VendorRow | null>(null);
-  const [vendorLoading, setVendorLoading] = useState(true);
-  const [images, setImages] = useState<PreviewImage[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema),
-    defaultValues: {
-      title: "",
-      category_id: "",
-      brand: "",
-      short_description: "",
-      description: "",
-      specifications: "",
-      tags: "",
-      price_naira: 0,
-      compare_at_naira: "" as unknown as number,
-      stock: 0,
-      low_stock_alert: "" as unknown as number,
-      sku: "",
-      weight_kg: "" as unknown as number,
-      handling_time: "1-2 business days",
-      ships_from: "Lagos, Nigeria",
-      free_shipping: false,
-      variants: [],
-    },
-  });
-
-  const {
-    register,
-    handleSubmit,
-    control,
-    watch,
-    setValue,
-    formState: { errors },
-  } = form;
-
-  const variantsField = useFieldArray({ control, name: "variants" });
-  const watchedPrice = watch("price_naira");
-  const freeShipping = watch("free_shipping");
-
-  // Load categories + current vendor.
   useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      const { data: cats } = await supabase
-        .from("categories")
-        .select("id, name")
-        .order("position", { ascending: true });
-      if (mounted && cats) setCategories(cats as CategoryRow[]);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    if (!authLoading && !user) void navigate({ to: "/login" });
+  }, [authLoading, user, navigate]);
 
-  useEffect(() => {
-    if (!user) {
-      setVendorLoading(false);
-      return;
-    }
-    let mounted = true;
-    void (async () => {
-      const { data } = await supabase
-        .from("vendors")
-        .select("id, store_name, status, commission_bps")
-        .eq("owner_id", user.id)
-        .maybeSingle();
-      if (!mounted) return;
-      setVendor(data as VendorRow | null);
-      setVendorLoading(false);
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [user]);
-
-  // Cleanup blob URLs on unmount.
-  useEffect(() => {
-    return () => {
-      images.forEach((i) => URL.revokeObjectURL(i.url));
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleImagePick = (files: FileList | null) => {
-    if (!files) return;
-    const remaining = MAX_IMAGES - images.length;
-    const next: PreviewImage[] = [];
-    for (const file of Array.from(files).slice(0, remaining)) {
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-        toast.error(`${file.name}: only JPG, PNG, WEBP allowed`);
-        continue;
-      }
-      if (file.size > MAX_IMAGE_BYTES) {
-        toast.error(`${file.name}: must be ≤ 5MB`);
-        continue;
-      }
-      next.push({
-        id: crypto.randomUUID(),
-        file,
-        url: URL.createObjectURL(file),
-      });
-    }
-    setImages((prev) => [...prev, ...next]);
-  };
-
-  const removeImage = (id: string) => {
-    setImages((prev) => {
-      const target = prev.find((i) => i.id === id);
-      if (target) URL.revokeObjectURL(target.url);
-      return prev.filter((i) => i.id !== id);
-    });
-  };
-
-  const commissionBps = vendor?.commission_bps ?? 1000;
-  const commissionPct = (commissionBps / 100).toFixed(0);
-  const commissionAmount = Number.isFinite(Number(watchedPrice))
-    ? Math.round(Number(watchedPrice) * (commissionBps / 10_000))
-    : 0;
-  const payoutAmount = Math.max(0, Number(watchedPrice || 0) - commissionAmount);
-
-  const onSubmit: SubmitHandler<ProductFormValues> = async (values) => {
-    if (!vendor) {
-      toast.error("Set up your vendor store before listing products");
-      return;
-    }
-    if (vendor.status !== "approved" && vendor.status !== "pending") {
-      toast.error("Your vendor account is not eligible to list products");
-      return;
-    }
-    if (images.length === 0) {
-      toast.error("Add at least one product image");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      // 1. Upload images to storage.
-      const uploaded: { url: string; position: number }[] = [];
-      for (let idx = 0; idx < images.length; idx++) {
-        const img = images[idx];
-        const ext = img.file.name.split(".").pop()?.toLowerCase() || "jpg";
-        const path = `${user!.id}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from("product-images")
-          .upload(path, img.file, {
-            cacheControl: "3600",
-            upsert: false,
-            contentType: img.file.type,
-          });
-        if (upErr) throw new Error(`Image upload failed: ${upErr.message}`);
-        const { data: pub } = supabase.storage
-          .from("product-images")
-          .getPublicUrl(path);
-        uploaded.push({ url: pub.publicUrl, position: idx });
-      }
-
-      // 2. Build description with optional specifications/tags appended.
-      const extras: string[] = [];
-      if (values.specifications && values.specifications.trim()) {
-        extras.push(`\n\n## Specifications\n${values.specifications.trim()}`);
-      }
-      if (values.brand && values.brand.trim()) {
-        extras.unshift(`Brand: ${values.brand.trim()}\n`);
-      }
-      const fullDescription =
-        `${values.short_description.trim()}\n\n${values.description.trim()}${extras.join("")}` +
-        (values.tags && values.tags.trim() ? `\n\nTags: ${values.tags.trim()}` : "");
-
-      // 3. Insert product (status: pending).
-      const compareAtKobo =
-        values.compare_at_naira === undefined ||
-        values.compare_at_naira === ("" as unknown as number) ||
-        Number(values.compare_at_naira) === 0
-          ? null
-          : nairaToKobo(Number(values.compare_at_naira));
-      const weightGrams =
-        values.weight_kg === undefined ||
-        values.weight_kg === ("" as unknown as number)
-          ? null
-          : Math.round(Number(values.weight_kg) * 1000);
-
-      const { data: inserted, error: insErr } = await supabase
-        .from("products")
-        .insert({
-          vendor_id: vendor.id,
-          category_id: values.category_id,
-          title: values.title.trim(),
-          slug: uniqueSlug(values.title),
-          description: fullDescription,
-          price_kobo: nairaToKobo(Number(values.price_naira)),
-          compare_at_kobo: compareAtKobo,
-          stock: Number(values.stock),
-          sku: values.sku?.trim() || null,
-          weight_grams: weightGrams,
-          status: "pending",
-        })
-        .select("id")
-        .single();
-      if (insErr || !inserted) {
-        throw new Error(insErr?.message || "Failed to create product");
-      }
-      const productId = inserted.id as string;
-
-      // 4. Insert images.
-      if (uploaded.length > 0) {
-        const { error: imgErr } = await supabase.from("product_images").insert(
-          uploaded.map((u) => ({
-            product_id: productId,
-            url: u.url,
-            position: u.position,
-          })),
-        );
-        if (imgErr) throw new Error(`Saving images failed: ${imgErr.message}`);
-      }
-
-      // 5. Insert variants (only meaningful rows).
-      const validVariants = values.variants.filter(
-        (v) => (v.name && v.name.trim()) || (v.value && v.value.trim()),
-      );
-      if (validVariants.length > 0) {
-        const { error: varErr } = await supabase.from("product_variants").insert(
-          validVariants.map((v) => ({
-            product_id: productId,
-            name:
-              [v.name, v.value].filter((s) => s && s.trim()).join(": ") ||
-              "Variant",
-            stock: Number(v.stock || 0),
-          })),
-        );
-        if (varErr) throw new Error(`Saving variants failed: ${varErr.message}`);
-      }
-
-      toast.success("Product submitted for admin review");
-      void navigate({ to: "/vendor/products/pending" });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Something went wrong";
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // ---- guards ----
-
-  if (authLoading || vendorLoading) {
+  if (authLoading || !user) {
     return (
-      <VendorShell title="Add New Product" subtitle="Loading…">
-        <div className="flex items-center justify-center py-20 text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading…
+      <VendorShell title="Add new product" subtitle="Loading…">
+        <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
         </div>
       </VendorShell>
     );
   }
 
-  if (!vendor) {
+  if (!hasRole("vendor") && !hasRole("admin")) {
     return (
-      <VendorShell
-        title="Add New Product"
-        subtitle="Set up your vendor store first"
-      >
+      <VendorShell title="Add new product" subtitle="Vendor access required">
         <Card className="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
           <CardContent className="flex items-start gap-3 p-6">
-            <AlertTriangle className="mt-0.5 h-5 w-5 text-yellow-600" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 text-amber-600" />
             <div className="space-y-2">
-              <p className="font-medium">No vendor store found.</p>
+              <p className="font-medium">
+                Your vendor account is not approved yet.
+              </p>
               <p className="text-sm text-muted-foreground">
-                You need to create a vendor profile before you can list
-                products on Ecove.
+                Complete onboarding & KYC. Once an admin approves your store,
+                you can list products.
               </p>
               <Button asChild size="sm">
-                <Link to="/vendor/profile">Set up store</Link>
+                <Link to="/vendor/onboarding">Go to onboarding</Link>
               </Button>
             </div>
           </CardContent>
@@ -398,438 +132,627 @@ function NewProductPage() {
     );
   }
 
+  return <NewProductForm />;
+}
+
+function NewProductForm() {
+  const navigate = useNavigate();
+  const fetchCats = useServerFn(listCategories);
+  const create = useServerFn(createProduct);
+  const addImage = useServerFn(addProductImage);
+  const reorder = useServerFn(reorderProductImages);
+  const removeImage = useServerFn(deleteProductImage);
+  const addVariant = useServerFn(addProductVariant);
+  const submit = useServerFn(submitProductForReview);
+  const getSig = useServerFn(getCloudinaryUploadSignature);
+
+  const { data: catData } = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => fetchCats(),
+  });
+  const tree = catData?.tree ?? [];
+
+  const [productId, setProductId] = useState<string | null>(null);
+  const [images, setImages] = useState<ProductImage[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      category_id: "",
+      subcategory_id: "",
+      price_naira: 0,
+      compare_at_naira: "" as unknown as number,
+      stock: 0,
+      sku: "",
+      weight_kg: "" as unknown as number,
+      variants: [],
+    },
+  });
+
+  const { register, handleSubmit, control, watch, setValue, formState } = form;
+  const variants = useFieldArray({ control, name: "variants" });
+  const categoryId = watch("category_id");
+
+  const subcategoryOptions = useMemo<CategoryNode[]>(() => {
+    return tree.find((c) => c.id === categoryId)?.children ?? [];
+  }, [tree, categoryId]);
+
+  // ---------- create draft on first save ----------
+  const createMut = useMutation({
+    mutationFn: async (values: ProductFormValues) => {
+      const compareAtKobo =
+        values.compare_at_naira === "" || Number(values.compare_at_naira) === 0
+          ? null
+          : nairaToKobo(Number(values.compare_at_naira));
+      const weightGrams =
+        values.weight_kg === "" ? null : Math.round(Number(values.weight_kg) * 1000);
+
+      return create({
+        data: {
+          title: values.title,
+          description: values.description,
+          price_kobo: nairaToKobo(Number(values.price_naira)),
+          compare_at_kobo: compareAtKobo,
+          stock: Number(values.stock),
+          sku: values.sku || null,
+          weight_grams: weightGrams,
+          category_id: values.subcategory_id || values.category_id,
+          subcategory_id: values.subcategory_id || null,
+        },
+      });
+    },
+    onSuccess: async (res, values) => {
+      setProductId(res.productId);
+      // Persist any variants entered before save
+      for (const v of values.variants) {
+        await addVariant({
+          data: {
+            product_id: res.productId,
+            name: v.name,
+            sku: v.sku || null,
+            price_kobo:
+              v.price_naira === undefined || Number(v.price_naira) === 0
+                ? null
+                : nairaToKobo(Number(v.price_naira)),
+            stock: Number(v.stock),
+            attributes: parseAttributes(v.attributes ?? ""),
+          },
+        });
+      }
+      toast.success("Draft saved. Now add images and submit for review.");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const submitMut = useMutation({
+    mutationFn: () => submit({ data: { id: productId! } }),
+    onSuccess: () => {
+      toast.success("Product submitted for admin review");
+      void navigate({ to: "/vendor/products/pending" });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const onSubmit: SubmitHandler<ProductFormValues> = (v) => createMut.mutate(v);
+
+  // ---------- Cloudinary upload ----------
+  async function handleFiles(files: FileList | null) {
+    if (!files || !productId) return;
+    setUploading(true);
+    try {
+      const sig = await getSig({ data: { product_id: productId } });
+      const remaining = MAX_IMAGES - images.length;
+      const list = Array.from(files).slice(0, remaining);
+      for (const file of list) {
+        if (!/^image\/(jpeg|png|webp|avif)$/.test(file.type)) {
+          toast.error(`${file.name}: only JPG/PNG/WEBP/AVIF`);
+          continue;
+        }
+        if (file.size > MAX_BYTES) {
+          toast.error(`${file.name}: must be ≤ 8MB`);
+          continue;
+        }
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("api_key", sig.api_key);
+        fd.append("timestamp", String(sig.timestamp));
+        fd.append("folder", sig.folder);
+        fd.append("eager", sig.eager);
+        fd.append("eager_async", "true");
+        fd.append("signature", sig.signature);
+
+        const res = await fetch(sig.upload_url, { method: "POST", body: fd });
+        if (!res.ok) {
+          const err = await res.text().catch(() => res.statusText);
+          throw new Error(`Cloudinary upload failed: ${err}`);
+        }
+        const json = (await res.json()) as {
+          secure_url: string;
+          public_id: string;
+          width: number;
+          height: number;
+        };
+        const row = await addImage({
+          data: {
+            product_id: productId,
+            url: json.secure_url,
+            cloudinary_public_id: json.public_id,
+            width: json.width,
+            height: json.height,
+            alt: file.name,
+          },
+        });
+        setImages((prev) => [...prev, row]);
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function deleteImg(id: string) {
+    await removeImage({ data: { id } });
+    setImages((prev) => prev.filter((i) => i.id !== id));
+  }
+
+  // ---------- Drag & drop reordering ----------
+  const dragId = useRef<string | null>(null);
+  function onDragStart(id: string) {
+    dragId.current = id;
+  }
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+  }
+  async function onDrop(targetId: string) {
+    const src = dragId.current;
+    dragId.current = null;
+    if (!src || src === targetId || !productId) return;
+    const next = [...images];
+    const srcIdx = next.findIndex((i) => i.id === src);
+    const tgtIdx = next.findIndex((i) => i.id === targetId);
+    if (srcIdx < 0 || tgtIdx < 0) return;
+    const [moved] = next.splice(srcIdx, 1);
+    next.splice(tgtIdx, 0, moved);
+    setImages(next);
+    await reorder({
+      data: { product_id: productId, order: next.map((i) => i.id) },
+    });
+  }
+
   return (
     <VendorShell
-      title="Add New Product"
-      subtitle="Submit a product for admin review before it goes live."
+      title="Add new product"
+      subtitle={
+        productId
+          ? "Step 2 of 2 — Upload images, then submit for review"
+          : "Step 1 of 2 — Enter product details, then save as draft"
+      }
     >
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="grid grid-cols-1 gap-6 lg:grid-cols-3"
+        className="grid gap-6 lg:grid-cols-3"
       >
-        {/* LEFT — main details */}
+        {/* LEFT: details + variants */}
         <div className="space-y-6 lg:col-span-2">
-          {/* Product details */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">📝 Product Details</CardTitle>
+              <CardTitle className="text-base">Basic info</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field label="Product Name *" error={errors.title?.message}>
+              <Field label="Product title" error={formState.errors.title?.message}>
                 <Input
                   {...register("title")}
-                  placeholder="e.g. Samsung Galaxy A55 5G 256GB Space Navy"
+                  placeholder="Samsung Galaxy A55 5G 256GB"
+                  disabled={!!productId}
                 />
               </Field>
 
-              <Field
-                label="Category *"
-                error={errors.category_id?.message}
-                hint="Categories are set by Ecove admin. You cannot add custom categories."
-              >
-                <Select
-                  value={watch("category_id")}
-                  onValueChange={(v) =>
-                    setValue("category_id", v, { shouldValidate: true })
-                  }
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field
+                  label="Category"
+                  error={formState.errors.category_id?.message}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="— Select category —" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field label="Brand" error={errors.brand?.message}>
-                <Input
-                  {...register("brand")}
-                  placeholder="e.g. Samsung, Apple, Nike…"
-                />
-              </Field>
-
-              <Field
-                label="Short Description *"
-                error={errors.short_description?.message}
-                hint="One-line summary shown in listings (max 120 chars)"
-              >
-                <Input
-                  {...register("short_description")}
-                  maxLength={120}
-                  placeholder="One-line summary shown in listings"
-                />
-              </Field>
+                  <CategoryPicker
+                    value={watch("category_id")}
+                    onChange={(v) => {
+                      setValue("category_id", v, { shouldValidate: true });
+                      setValue("subcategory_id", "");
+                    }}
+                    options={tree}
+                    placeholder="Select top-level category"
+                    disabled={!!productId}
+                  />
+                </Field>
+                <Field label="Subcategory">
+                  <CategoryPicker
+                    value={watch("subcategory_id") || ""}
+                    onChange={(v) =>
+                      setValue("subcategory_id", v, { shouldValidate: true })
+                    }
+                    options={subcategoryOptions}
+                    placeholder={
+                      subcategoryOptions.length
+                        ? "Select subcategory"
+                        : "Pick a category first"
+                    }
+                    disabled={!subcategoryOptions.length || !!productId}
+                  />
+                </Field>
+              </div>
 
               <Field
-                label="Full Description *"
-                error={errors.description?.message}
+                label="Description"
+                error={formState.errors.description?.message}
               >
                 <Textarea
-                  {...register("description")}
                   rows={6}
-                  placeholder="Detailed product description. Include key features, dimensions, materials, what's in the box, etc."
-                />
-              </Field>
-
-              <Field
-                label="Specifications"
-                error={errors.specifications?.message}
-                hint="Key: Value pairs, one per line"
-              >
-                <Textarea
-                  {...register("specifications")}
-                  rows={5}
-                  placeholder={`RAM: 12GB\nStorage: 256GB\nDisplay: 6.4" AMOLED\nBattery: 5000mAh`}
-                />
-              </Field>
-
-              <Field label="Tags" error={errors.tags?.message}>
-                <Input
-                  {...register("tags")}
-                  placeholder="samsung, galaxy, 5g, smartphone (comma separated)"
+                  {...register("description")}
+                  placeholder="Detailed description, features, materials, what's in the box…"
+                  disabled={!!productId}
                 />
               </Field>
             </CardContent>
           </Card>
 
-          {/* Pricing & Stock */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">💰 Pricing & Stock</CardTitle>
+              <CardTitle className="text-base">Pricing & inventory</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field
-                  label="Selling Price (₦) *"
-                  error={errors.price_naira?.message}
-                  hint={
-                    Number(watchedPrice) > 0
-                      ? `Your commission: ${commissionPct}% = ${formatNaira(commissionAmount)} → You receive ${formatNaira(payoutAmount)}`
-                      : `Commission rate: ${commissionPct}%`
-                  }
-                >
-                  <Input
-                    type="number"
-                    step="1"
-                    min={0}
-                    {...register("price_naira")}
-                    placeholder="285000"
-                  />
-                </Field>
-                <Field
-                  label="Compare At Price (₦)"
-                  error={errors.compare_at_naira?.message}
-                  hint="Original price — shows as crossed out"
-                >
-                  <Input
-                    type="number"
-                    step="1"
-                    min={0}
-                    {...register("compare_at_naira")}
-                    placeholder="320000"
-                  />
-                </Field>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Stock Quantity *" error={errors.stock?.message}>
-                  <Input
-                    type="number"
-                    step="1"
-                    min={0}
-                    {...register("stock")}
-                    placeholder="50"
-                  />
-                </Field>
-                <Field
-                  label="Low Stock Alert"
-                  error={errors.low_stock_alert?.message}
-                >
-                  <Input
-                    type="number"
-                    step="1"
-                    min={0}
-                    {...register("low_stock_alert")}
-                    placeholder="5"
-                  />
-                </Field>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="SKU" error={errors.sku?.message}>
-                  <Input {...register("sku")} placeholder="SAM-A55-256-NAVY" />
-                </Field>
-                <Field label="Weight (kg)" error={errors.weight_kg?.message}>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    min={0}
-                    {...register("weight_kg")}
-                    placeholder="0.2"
-                  />
-                </Field>
-              </div>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Price (₦)"
+                error={formState.errors.price_naira?.message}
+              >
+                <Input
+                  type="number"
+                  step="any"
+                  {...register("price_naira")}
+                  disabled={!!productId}
+                />
+              </Field>
+              <Field label="Compare-at price (₦)">
+                <Input
+                  type="number"
+                  step="any"
+                  {...register("compare_at_naira")}
+                  placeholder="Optional"
+                  disabled={!!productId}
+                />
+              </Field>
+              <Field
+                label="Stock"
+                error={formState.errors.stock?.message}
+              >
+                <Input
+                  type="number"
+                  {...register("stock")}
+                  disabled={!!productId}
+                />
+              </Field>
+              <Field label="SKU">
+                <Input {...register("sku")} disabled={!!productId} />
+              </Field>
+              <Field label="Weight (kg)">
+                <Input
+                  type="number"
+                  step="any"
+                  {...register("weight_kg")}
+                  disabled={!!productId}
+                />
+              </Field>
             </CardContent>
           </Card>
 
-          {/* Variants */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">🎨 Product Variants</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base">Variants (optional)</CardTitle>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  variantsField.append({ name: "", value: "", stock: 0 })
+                  variants.append({
+                    name: "",
+                    sku: "",
+                    price_naira: 0,
+                    stock: 0,
+                    attributes: "",
+                  })
                 }
+                disabled={!!productId}
               >
-                <Plus className="mr-1 h-4 w-4" /> Add Variant
+                <Plus className="mr-1 h-3.5 w-3.5" /> Add variant
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {variantsField.fields.length === 0 ? (
-                <p className="rounded-md bg-muted/50 p-4 text-center text-sm text-muted-foreground">
-                  No variants yet. Add one if your product comes in different
-                  colors, sizes, or styles.
+              {variants.fields.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Add SKU-level variants if your product has multiple sizes,
+                  colors, etc. Each variant has its own price, stock, and SKU.
                 </p>
-              ) : (
-                variantsField.fields.map((field, idx) => (
-                  <div
-                    key={field.id}
-                    className="rounded-md border bg-muted/30 p-3"
+              ) : null}
+              {variants.fields.map((f, idx) => (
+                <div
+                  key={f.id}
+                  className="grid gap-2 rounded-lg border border-border bg-muted/40 p-3 sm:grid-cols-[1.4fr_1fr_1fr_0.8fr_1.2fr_auto]"
+                >
+                  <Input
+                    {...register(`variants.${idx}.name`)}
+                    placeholder="Variant name (e.g. Black / Large)"
+                    disabled={!!productId}
+                  />
+                  <Input
+                    {...register(`variants.${idx}.sku`)}
+                    placeholder="SKU"
+                    disabled={!!productId}
+                  />
+                  <Input
+                    type="number"
+                    step="any"
+                    {...register(`variants.${idx}.price_naira`)}
+                    placeholder="Price ₦"
+                    disabled={!!productId}
+                  />
+                  <Input
+                    type="number"
+                    {...register(`variants.${idx}.stock`)}
+                    placeholder="Stock"
+                    disabled={!!productId}
+                  />
+                  <Input
+                    {...register(`variants.${idx}.attributes`)}
+                    placeholder="color=Black,size=L"
+                    disabled={!!productId}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => variants.remove(idx)}
+                    disabled={!!productId}
                   >
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_120px_auto]">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Variant Name</Label>
-                        <Input
-                          {...register(`variants.${idx}.name`)}
-                          placeholder="Color"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Value</Label>
-                        <Input
-                          {...register(`variants.${idx}.value`)}
-                          placeholder="Space Navy"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Stock</Label>
-                        <Input
-                          type="number"
-                          min={0}
-                          {...register(`variants.${idx}.stock`)}
-                          placeholder="20"
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => variantsField.remove(idx)}
-                          aria-label="Remove variant"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
 
-        {/* RIGHT — images, shipping, rules */}
+        {/* RIGHT: images + actions */}
         <div className="space-y-6">
-          {/* Images */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">📷 Product Images</CardTitle>
+              <CardTitle className="text-base">Images</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <label
-                htmlFor="image-upload"
-                className="flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-6 text-center transition-colors hover:border-primary hover:bg-primary/5"
-              >
-                <ImagePlus className="mb-2 h-8 w-8 text-muted-foreground" />
-                <span className="text-sm font-medium">
-                  Click to upload images
-                </span>
-                <span className="mt-1 text-xs text-muted-foreground">
-                  JPG/PNG/WEBP · Max 5MB each · Up to {MAX_IMAGES} images
-                </span>
-                <input
-                  id="image-upload"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    handleImagePick(e.target.files);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-
-              <div className="grid grid-cols-4 gap-2">
-                {images.map((img, idx) => (
-                  <div
-                    key={img.id}
-                    className="group relative aspect-square overflow-hidden rounded-md border bg-muted"
-                  >
-                    <img
-                      src={img.url}
-                      alt={`Product ${idx + 1}`}
-                      className="h-full w-full object-cover"
+              {!productId ? (
+                <p className="text-xs text-muted-foreground">
+                  Save the draft first, then upload images here. They&apos;ll
+                  be stored on Cloudinary with auto-resizing.
+                </p>
+              ) : (
+                <>
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-muted/40 p-6 text-center text-sm text-muted-foreground transition hover:border-primary">
+                    <ImagePlus className="h-6 w-6" />
+                    <span className="font-medium text-foreground">
+                      {uploading ? "Uploading…" : "Click to add images"}
+                    </span>
+                    <span className="text-[11px]">
+                      JPG, PNG, WEBP up to 8 MB · max {MAX_IMAGES} images
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/avif"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => void handleFiles(e.target.files)}
+                      disabled={uploading || images.length >= MAX_IMAGES}
                     />
-                    {idx === 0 && (
-                      <span className="absolute left-1 top-1 rounded bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary-foreground">
-                        Main
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeImage(img.id)}
-                      className="absolute right-1 top-1 rounded-full bg-background/90 p-1 opacity-0 shadow transition-opacity group-hover:opacity-100"
-                      aria-label="Remove image"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                {Array.from({
-                  length: Math.max(0, Math.min(4, MAX_IMAGES - images.length)),
-                }).map((_, i) => (
-                  <label
-                    key={`slot-${i}`}
-                    htmlFor="image-upload"
-                    className="flex aspect-square cursor-pointer items-center justify-center rounded-md border-2 border-dashed border-muted-foreground/20 text-muted-foreground/40 hover:border-primary hover:text-primary"
-                  >
-                    <Plus className="h-4 w-4" />
                   </label>
-                ))}
-              </div>
 
-              <p className="text-xs text-muted-foreground">
-                First image is used as the main listing photo. Use clear, bright
-                images on white backgrounds for best approval chances.
-              </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {images.map((img, idx) => (
+                      <div
+                        key={img.id}
+                        draggable
+                        onDragStart={() => onDragStart(img.id)}
+                        onDragOver={onDragOver}
+                        onDrop={() => void onDrop(img.id)}
+                        className="group relative aspect-square overflow-hidden rounded-md border border-border bg-muted"
+                      >
+                        <img
+                          src={img.url}
+                          alt={img.alt ?? ""}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                        <span className="absolute left-1 top-1 rounded bg-foreground/70 px-1.5 py-0.5 text-[10px] font-bold text-background">
+                          {idx === 0 ? "Primary" : idx + 1}
+                        </span>
+                        <span className="absolute right-1 top-1 rounded bg-foreground/70 p-1 text-background opacity-0 transition group-hover:opacity-100">
+                          <GripVertical className="h-3 w-3" />
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void deleteImg(img.id)}
+                          className="absolute bottom-1 right-1 rounded bg-destructive p-1 text-destructive-foreground opacity-0 transition group-hover:opacity-100"
+                          aria-label="Delete image"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  {images.length > 0 ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Drag thumbnails to reorder. First image is the primary.
+                    </p>
+                  ) : null}
+                </>
+              )}
             </CardContent>
           </Card>
 
-          {/* Shipping */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">🚚 Shipping</CardTitle>
+              <CardTitle className="text-base">Status</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Field label="Handling Time" error={errors.handling_time?.message}>
-                <Select
-                  value={watch("handling_time")}
-                  onValueChange={(v) =>
-                    setValue("handling_time", v, { shouldValidate: true })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HANDLING_TIMES.map((h) => (
-                      <SelectItem key={h} value={h}>
-                        {h}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field label="Ships From" error={errors.ships_from?.message}>
-                <Input
-                  {...register("ships_from")}
-                  placeholder="Lagos, Nigeria"
-                />
-              </Field>
-
-              <div className="flex items-center justify-between rounded-md border bg-muted/30 p-3">
-                <div className="space-y-0.5">
-                  <Label htmlFor="free-shipping" className="cursor-pointer">
-                    Free shipping eligible
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Show a free shipping badge on this product.
-                  </p>
-                </div>
-                <Switch
-                  id="free-shipping"
-                  checked={freeShipping}
-                  onCheckedChange={(v) => setValue("free_shipping", v)}
-                />
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Badge variant={productId ? "secondary" : "outline"}>
+                  {productId ? "draft" : "not saved"}
+                </Badge>
+                {images.length > 0 ? (
+                  <Badge variant="outline">{images.length} image(s)</Badge>
+                ) : null}
               </div>
+              {!productId ? (
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createMut.isPending}
+                >
+                  {createMut.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save draft
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  className="w-full"
+                  onClick={() => submitMut.mutate()}
+                  disabled={submitMut.isPending || images.length === 0}
+                >
+                  {submitMut.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  Submit for review
+                </Button>
+              )}
             </CardContent>
           </Card>
-
-          {/* Submission rules */}
-          <Card className="border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30">
-            <CardContent className="space-y-2 p-5">
-              <p className="text-sm font-bold">⚠️ Submission Rules</p>
-              <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
-                <li>Accurate product descriptions required</li>
-                <li>At least 1 clear product image</li>
-                <li>No counterfeit or prohibited items</li>
-                <li>Correct category selection</li>
-                <li>Realistic pricing (no price inflation)</li>
-                <li>Stock must be available before listing</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-2">
-            <Button type="submit" className="w-full" size="lg" disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitting ? "Submitting…" : "Submit for Admin Review →"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              disabled={submitting}
-              onClick={() => navigate({ to: "/vendor/products" })}
-            >
-              Cancel
-            </Button>
-          </div>
         </div>
       </form>
     </VendorShell>
   );
 }
 
+// ---------------------------------------------------------------------------
+
 function Field({
   label,
-  hint,
   error,
   children,
+  hint,
 }: {
   label: string;
-  hint?: string;
   error?: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-sm font-medium">{label}</Label>
+      <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </label>
       {children}
-      {error ? (
-        <p className="text-xs font-medium text-destructive">{error}</p>
-      ) : hint ? (
-        <p className="text-xs text-muted-foreground">{hint}</p>
-      ) : null}
+      {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
+      {error ? <p className="text-[11px] text-destructive">{error}</p> : null}
     </div>
   );
+}
+
+function CategoryPicker({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: CategoryNode[];
+  placeholder: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((o) => o.id === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between font-normal"
+          disabled={disabled}
+        >
+          <span className="flex items-center gap-2 truncate">
+            {selected ? (
+              <>
+                <span>{selected.icon ?? "•"}</span>
+                {selected.name}
+              </>
+            ) : (
+              <span className="text-muted-foreground">{placeholder}</span>
+            )}
+          </span>
+          <ChevronsUpDown className="h-4 w-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+        <Command>
+          <div className="flex items-center gap-2 border-b border-border px-3">
+            <Search className="h-3.5 w-3.5 text-muted-foreground" />
+            <CommandInput placeholder="Search…" className="h-9" />
+          </div>
+          <CommandList>
+            <CommandEmpty>No category found</CommandEmpty>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem
+                  key={o.id}
+                  value={`${o.name} ${o.slug}`}
+                  onSelect={() => {
+                    onChange(o.id);
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value === o.id ? "opacity-100" : "opacity-0",
+                    )}
+                  />
+                  <span className="mr-2">{o.icon ?? "•"}</span>
+                  {o.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function parseAttributes(s: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!s) return out;
+  for (const part of s.split(",")) {
+    const [k, v] = part.split("=").map((x) => x?.trim());
+    if (k && v) out[k] = v;
+  }
+  return out;
 }

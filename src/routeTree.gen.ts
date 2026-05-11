@@ -31,7 +31,6 @@ import { Route as VendorProductsPendingRouteImport } from './routes/vendor.produ
 import { Route as VendorProductsNewRouteImport } from './routes/vendor.products.new'
 import { Route as VendorAdminProductsRouteImport } from './routes/vendor.admin.products'
 import { Route as VendorAdminApprovalsRouteImport } from './routes/vendor.admin.approvals'
-import { Route as VendorAdminProductsRouteImport } from './routes/vendor.admin.products'
 
 const VendorRoute = VendorRouteImport.update({
   id: '/vendor',
@@ -141,11 +140,6 @@ const VendorAdminProductsRoute = VendorAdminProductsRouteImport.update({
 const VendorAdminApprovalsRoute = VendorAdminApprovalsRouteImport.update({
   id: '/admin/approvals',
   path: '/admin/approvals',
-  getParentRoute: () => VendorRoute,
-} as any)
-const VendorAdminProductsRoute = VendorAdminProductsRouteImport.update({
-  id: '/admin/products',
-  path: '/admin/products',
   getParentRoute: () => VendorRoute,
 } as any)
 

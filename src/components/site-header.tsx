@@ -104,7 +104,10 @@ export function SiteHeader() {
                 <span className="hidden sm:inline">Account</span>
               </Link>
             )}
-            <HeaderIcon icon={<ClipboardList className="h-5 w-5" />} label="Orders" />
+            <Link to="/account/orders" className="flex flex-col items-center gap-0.5 rounded-md px-3 py-1.5 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground">
+              <ClipboardList className="h-5 w-5" />
+              <span className="hidden sm:inline">Orders</span>
+            </Link>
             <HeaderIcon icon={<HelpCircle className="h-5 w-5" />} label="Help" />
           </nav>
         </div>

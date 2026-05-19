@@ -33,9 +33,11 @@ import { Route as VendorDiagnosticsRouteImport } from './routes/vendor.diagnosti
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminProductsRouteImport } from './routes/admin.products'
+import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
 import { Route as AdminApprovalsRouteImport } from './routes/admin.approvals'
+import { Route as AccountOrdersRouteImport } from './routes/account.orders'
 import { Route as VendorProductsIndexRouteImport } from './routes/vendor.products.index'
 import { Route as VendorProductsPendingRouteImport } from './routes/vendor.products.pending'
 import { Route as VendorProductsNewRouteImport } from './routes/vendor.products.new'
@@ -43,6 +45,7 @@ import { Route as VendorAdminProductsRouteImport } from './routes/vendor.admin.p
 import { Route as VendorAdminOrdersRouteImport } from './routes/vendor.admin.orders'
 import { Route as VendorAdminApprovalsRouteImport } from './routes/vendor.admin.approvals'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
+import { Route as AccountOrdersOrderIdRouteImport } from './routes/account.orders.$orderId'
 
 const VendorRoute = VendorRouteImport.update({
   id: '/vendor',
@@ -164,6 +167,11 @@ const AdminProductsRoute = AdminProductsRouteImport.update({
   path: '/products',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminOrdersRoute = AdminOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -178,6 +186,11 @@ const AdminApprovalsRoute = AdminApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
   getParentRoute: () => AdminRoute,
+} as any)
+const AccountOrdersRoute = AccountOrdersRouteImport.update({
+  id: '/account/orders',
+  path: '/account/orders',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const VendorProductsIndexRoute = VendorProductsIndexRouteImport.update({
   id: '/products/',
@@ -215,6 +228,11 @@ const ApiPublicPaystackWebhookRoute =
     path: '/api/public/paystack-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AccountOrdersOrderIdRoute = AccountOrdersOrderIdRouteImport.update({
+  id: '/$orderId',
+  path: '/$orderId',
+  getParentRoute: () => AccountOrdersRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -224,9 +242,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/vendor': typeof VendorRouteWithChildren
+  '/account/orders': typeof AccountOrdersRouteWithChildren
   '/admin/approvals': typeof AdminApprovalsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/orders': typeof AdminOrdersRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -244,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/vendor/store': typeof VendorStoreRoute
   '/admin/': typeof AdminIndexRoute
   '/vendor/': typeof VendorIndexRoute
+  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
   '/vendor/admin/orders': typeof VendorAdminOrdersRoute
@@ -258,9 +279,11 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/account/orders': typeof AccountOrdersRouteWithChildren
   '/admin/approvals': typeof AdminApprovalsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/orders': typeof AdminOrdersRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -278,6 +301,7 @@ export interface FileRoutesByTo {
   '/vendor/store': typeof VendorStoreRoute
   '/admin': typeof AdminIndexRoute
   '/vendor': typeof VendorIndexRoute
+  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
   '/vendor/admin/orders': typeof VendorAdminOrdersRoute
@@ -295,9 +319,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/vendor': typeof VendorRouteWithChildren
+  '/account/orders': typeof AccountOrdersRouteWithChildren
   '/admin/approvals': typeof AdminApprovalsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/orders': typeof AdminOrdersRoute
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -315,6 +341,7 @@ export interface FileRoutesById {
   '/vendor/store': typeof VendorStoreRoute
   '/admin/': typeof AdminIndexRoute
   '/vendor/': typeof VendorIndexRoute
+  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
   '/vendor/admin/orders': typeof VendorAdminOrdersRoute
@@ -333,9 +360,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/vendor'
+    | '/account/orders'
     | '/admin/approvals'
     | '/admin/diagnostics'
     | '/admin/orders'
+    | '/admin/payouts'
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
@@ -353,6 +382,7 @@ export interface FileRouteTypes {
     | '/vendor/store'
     | '/admin/'
     | '/vendor/'
+    | '/account/orders/$orderId'
     | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
     | '/vendor/admin/orders'
@@ -367,9 +397,11 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/login'
     | '/signup'
+    | '/account/orders'
     | '/admin/approvals'
     | '/admin/diagnostics'
     | '/admin/orders'
+    | '/admin/payouts'
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
@@ -387,6 +419,7 @@ export interface FileRouteTypes {
     | '/vendor/store'
     | '/admin'
     | '/vendor'
+    | '/account/orders/$orderId'
     | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
     | '/vendor/admin/orders'
@@ -403,9 +436,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/signup'
     | '/vendor'
+    | '/account/orders'
     | '/admin/approvals'
     | '/admin/diagnostics'
     | '/admin/orders'
+    | '/admin/payouts'
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
@@ -423,6 +458,7 @@ export interface FileRouteTypes {
     | '/vendor/store'
     | '/admin/'
     | '/vendor/'
+    | '/account/orders/$orderId'
     | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
     | '/vendor/admin/orders'
@@ -440,6 +476,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   VendorRoute: typeof VendorRouteWithChildren
+  AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
 }
 
@@ -613,6 +650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProductsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/payouts': {
+      id: '/admin/payouts'
+      path: '/payouts'
+      fullPath: '/admin/payouts'
+      preLoaderRoute: typeof AdminPayoutsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/orders': {
       id: '/admin/orders'
       path: '/orders'
@@ -633,6 +677,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/approvals'
       preLoaderRoute: typeof AdminApprovalsRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/account/orders': {
+      id: '/account/orders'
+      path: '/account/orders'
+      fullPath: '/account/orders'
+      preLoaderRoute: typeof AccountOrdersRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/vendor/products/': {
       id: '/vendor/products/'
@@ -683,6 +734,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account/orders/$orderId': {
+      id: '/account/orders/$orderId'
+      path: '/$orderId'
+      fullPath: '/account/orders/$orderId'
+      preLoaderRoute: typeof AccountOrdersOrderIdRouteImport
+      parentRoute: typeof AccountOrdersRoute
+    }
   }
 }
 
@@ -690,6 +748,7 @@ interface AdminRouteChildren {
   AdminApprovalsRoute: typeof AdminApprovalsRoute
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
+  AdminPayoutsRoute: typeof AdminPayoutsRoute
   AdminProductsRoute: typeof AdminProductsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -699,6 +758,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminApprovalsRoute: AdminApprovalsRoute,
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
   AdminOrdersRoute: AdminOrdersRoute,
+  AdminPayoutsRoute: AdminPayoutsRoute,
   AdminProductsRoute: AdminProductsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -765,6 +825,18 @@ const VendorRouteChildren: VendorRouteChildren = {
 const VendorRouteWithChildren =
   VendorRoute._addFileChildren(VendorRouteChildren)
 
+interface AccountOrdersRouteChildren {
+  AccountOrdersOrderIdRoute: typeof AccountOrdersOrderIdRoute
+}
+
+const AccountOrdersRouteChildren: AccountOrdersRouteChildren = {
+  AccountOrdersOrderIdRoute: AccountOrdersOrderIdRoute,
+}
+
+const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
+  AccountOrdersRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -773,6 +845,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   VendorRoute: VendorRouteWithChildren,
+  AccountOrdersRoute: AccountOrdersRouteWithChildren,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
 }
 export const routeTree = rootRouteImport

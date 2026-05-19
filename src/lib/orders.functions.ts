@@ -37,15 +37,18 @@ export const getMyOrder = createServerFn({ method: "GET" })
       status: string;
       reason: string;
       created_at: string;
+      updated_at: string | null;
+      processed_at: string | null;
       admin_note: string | null;
     }> = [];
     if (itemIds.length) {
       const { data: rfs } = await supabase
         .from("refund_requests")
-        .select("id, order_item_id, status, reason, created_at, admin_note")
+        .select("id, order_item_id, status, reason, created_at, updated_at, processed_at, admin_note")
         .in("order_item_id", itemIds);
       refunds = rfs ?? [];
     }
+
     return { order, refunds };
   });
 

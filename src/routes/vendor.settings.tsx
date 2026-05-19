@@ -130,7 +130,7 @@ function AdminSettingsView() {
     return acc;
   }, {});
 
-  const categoryOrder = ["payments", "monitoring", "analytics", "email", "general"];
+  const categoryOrder = ["payments", "storage", "monitoring", "analytics", "email", "general"];
   const sortedCategories = Object.keys(grouped).sort(
     (a, b) => (categoryOrder.indexOf(a) === -1 ? 99 : categoryOrder.indexOf(a)) - (categoryOrder.indexOf(b) === -1 ? 99 : categoryOrder.indexOf(b)),
   );

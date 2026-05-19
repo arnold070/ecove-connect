@@ -7,6 +7,31 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getPlatformValue } from "./platform-settings.server";
 
+async function testCloudinary(): Promise<TestResult> {
+  const [cloud, key, secret] = await Promise.all([
+    getPlatformValue("CLOUDINARY_CLOUD_NAME"),
+    getPlatformValue("CLOUDINARY_API_KEY"),
+    getPlatformValue("CLOUDINARY_API_SECRET"),
+  ]);
+  const missing: string[] = [];
+  if (!cloud) missing.push("CLOUDINARY_CLOUD_NAME");
+  if (!key) missing.push("CLOUDINARY_API_KEY");
+  if (!secret) missing.push("CLOUDINARY_API_SECRET");
+  if (missing.length) return { ok: false, message: `Missing: ${missing.join(", ")}` };
+  try {
+    const auth = Buffer.from(`${key}:${secret}`).toString("base64");
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/usage`, {
+      headers: { Authorization: `Basic ${auth}` },
+    });
+    if (!res.ok) {
+      return { ok: false, message: `Cloudinary auth failed (${res.status})` };
+    }
+    return { ok: true, message: "Cloudinary credentials are valid", detail: `cloud=${cloud}` };
+  } catch (e) {
+    return { ok: false, message: "Could not reach Cloudinary", detail: (e as Error).message };
+  }
+}
+
 interface TestResult {
   ok: boolean;
   message: string;

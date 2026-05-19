@@ -43,29 +43,6 @@ const NAV_SECTIONS: { title: string; items: VendorNavLink[] }[] = [
     ],
   },
   {
-    title: "Admin",
-    items: [
-      {
-        to: "/vendor/admin/approvals",
-        label: "Vendor approvals",
-        icon: <Users className="h-4 w-4" />,
-        requireRole: "admin",
-      },
-      {
-        to: "/vendor/admin/products",
-        label: "Product moderation",
-        icon: <ShieldCheck className="h-4 w-4" />,
-        requireRole: "admin",
-      },
-      {
-        to: "/vendor/admin/orders",
-        label: "Orders & payments",
-        icon: <Truck className="h-4 w-4" />,
-        requireRole: "admin",
-      },
-    ],
-  },
-  {
     title: "Products",
     items: [
       { to: "/vendor/products/new", label: "Add New Product", icon: <PlusCircle className="h-4 w-4" /> },
@@ -93,7 +70,17 @@ const NAV_SECTIONS: { title: string; items: VendorNavLink[] }[] = [
     items: [
       { to: "/vendor/profile", label: "Profile & Bank", icon: <UserCog className="h-4 w-4" /> },
       { to: "/vendor/policies", label: "Marketplace Policies", icon: <ScrollText className="h-4 w-4" /> },
-      { to: "/vendor/settings", label: "API Keys & Settings", icon: <Settings className="h-4 w-4" /> },
+    ],
+  },
+  {
+    title: "Admin",
+    items: [
+      {
+        to: "/admin/settings",
+        label: "Admin Control Panel",
+        icon: <Settings className="h-4 w-4" />,
+        requireRole: "admin",
+      },
     ],
   },
 ];

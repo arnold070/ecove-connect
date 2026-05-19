@@ -16,7 +16,7 @@ declare global {
 }
 
 /** Public storefront paths only — admin/auth routes never load the widget. */
-const ADMIN_PREFIXES = ["/vendor", "/login", "/signup", "/checkout"];
+const ADMIN_PREFIXES = ["/vendor", "/admin", "/login", "/signup", "/checkout"];
 
 function isStorefrontPath(pathname: string): boolean {
   return !ADMIN_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));

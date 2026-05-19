@@ -125,7 +125,7 @@ function OrderDetail() {
                               />
                             )}
                             {rf && (
-                              <div className="w-full pt-2">
+                              <div className="w-full pt-2 space-y-2">
                                 <RefundStatusTimeline
                                   status={rf.status as RefundStatus}
                                   createdAt={rf.created_at}
@@ -133,6 +133,12 @@ function OrderDetail() {
                                   processedAt={rf.processed_at}
                                   adminNote={rf.admin_note}
                                 />
+                                {rf.status === "requested" && (
+                                  <CancelRefundButton
+                                    refundId={rf.id}
+                                    onDone={() => qc.invalidateQueries({ queryKey: ["my-order", orderId] })}
+                                  />
+                                )}
                               </div>
                             )}
                           </div>

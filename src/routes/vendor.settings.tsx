@@ -490,27 +490,88 @@ function SettingRow({ setting, onUpdated }: { setting: PlatformSetting; onUpdate
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState("");
   const [revealed, setRevealed] = useState(false);
-  const updateFn = useServerFn(updatePlatformSetting);
+  const [revealedValue, setRevealedValue] = useState<string | null>(null);
+  const [formatError, setFormatError] = useState<string | null>(null);
+  const [verifyResult, setVerifyResult] = useState<{ ok: boolean; message: string; detail?: string } | null>(null);
 
-  const mutation = useMutation({
-    mutationFn: (newValue: string) => updateFn({ data: { id: setting.id, value: newValue } }),
-    onSuccess: () => {
-      toast.success(`${setting.label} updated`);
-      setEditing(false);
-      onUpdated();
+  const updateFn = useServerFn(updatePlatformSetting);
+  const revealFn = useServerFn(revealPlatformSetting);
+  const testFn = useServerFn(testPlatformService);
+
+  const testService = KEY_TO_TEST_SERVICE[setting.key];
+
+  const revealMutation = useMutation({
+    mutationFn: () => revealFn({ data: { id: setting.id } }),
+    onSuccess: (res) => {
+      setRevealedValue(res.value);
+      setRevealed(true);
     },
-    onError: (err) => toast.error(`Failed: ${(err as Error).message}`),
+    onError: (err) => toast.error(`Reveal failed: ${(err as Error).message}`),
   });
 
+  const saveAndVerify = useMutation({
+    mutationFn: async (newValue: string) => {
+      await updateFn({ data: { id: setting.id, value: newValue } });
+      if (testService) {
+        // small delay so the server cache invalidation propagates
+        await new Promise((r) => setTimeout(r, 250));
+        return await testFn({ data: { service: testService } });
+      }
+      return null;
+    },
+    onSuccess: (result) => {
+      if (!result) {
+        toast.success(`${setting.label} saved`);
+        setVerifyResult(null);
+      } else if (result.ok) {
+        toast.success(`${setting.label} saved & verified`, { description: result.message });
+        setVerifyResult({ ok: true, ...result });
+      } else {
+        toast.error(`${setting.label} saved but verification failed`, {
+          description: result.message,
+        });
+        setVerifyResult({ ok: false, ...result });
+      }
+      setEditing(false);
+      setRevealedValue(null);
+      setRevealed(false);
+      onUpdated();
+    },
+    onError: (err) => toast.error(`Save failed: ${(err as Error).message}`),
+  });
+
+  const handleSave = () => {
+    const err = validateKey(setting.key, value);
+    if (err) {
+      setFormatError(err);
+      toast.error("Invalid format", { description: err });
+      return;
+    }
+    setFormatError(null);
+    saveAndVerify.mutate(value);
+  };
+
   const startEditing = useCallback(() => {
-    setValue(setting.is_secret ? "" : setting.value);
+    setValue("");
+    setFormatError(null);
+    setVerifyResult(null);
     setEditing(true);
-  }, [setting]);
+  }, []);
+
+  const toggleReveal = () => {
+    if (revealed) {
+      setRevealed(false);
+      setRevealedValue(null);
+      return;
+    }
+    if (setting.is_secret) revealMutation.mutate();
+    else setRevealed(true);
+  };
 
   const hasValue = setting.value && setting.value !== "••••••••";
   const displayValue = setting.is_secret
-    ? revealed && setting.value
-      ? setting.value
+    ? revealed && revealedValue
+      ? revealedValue
       : "••••••••"
     : setting.value || "—";
 
@@ -521,9 +582,7 @@ function SettingRow({ setting, onUpdated }: { setting: PlatformSetting; onUpdate
           <div className="flex items-center gap-2">
             <span className="font-mono text-sm font-semibold text-foreground">{setting.key}</span>
             {setting.is_secret && (
-              <Badge variant="outline" className="text-[10px]">
-                Secret
-              </Badge>
+              <Badge variant="outline" className="text-[10px]">Secret</Badge>
             )}
             {hasValue ? (
               <CheckCircle2 className="h-3.5 w-3.5 text-success" />
@@ -536,14 +595,22 @@ function SettingRow({ setting, onUpdated }: { setting: PlatformSetting; onUpdate
 
         {!editing && (
           <div className="flex items-center gap-2">
-            {setting.is_secret && setting.value && (
+            {setting.value && (
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => setRevealed((r) => !r)}
+                onClick={toggleReveal}
+                disabled={revealMutation.isPending}
+                aria-label={revealed ? "Hide value" : "Show value"}
               >
-                {revealed ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {revealMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : revealed ? (
+                  <EyeOff className="h-3.5 w-3.5" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
               </Button>
             )}
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={startEditing}>
@@ -560,32 +627,71 @@ function SettingRow({ setting, onUpdated }: { setting: PlatformSetting; onUpdate
       )}
 
       {editing && (
-        <div className="mt-3 flex items-center gap-2">
-          <Input
-            type={setting.is_secret ? "password" : "text"}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={`Enter ${setting.label}`}
-            className="h-8 font-mono text-xs"
-            autoFocus
-          />
-          <Button
-            size="sm"
-            className="h-8 gap-1 text-xs"
-            onClick={() => mutation.mutate(value)}
-            disabled={mutation.isPending}
-          >
-            <Save className="h-3 w-3" />
-            Save
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 text-xs"
-            onClick={() => setEditing(false)}
-          >
-            Cancel
-          </Button>
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Input
+              type={setting.is_secret ? "password" : "text"}
+              value={value}
+              onChange={(e) => {
+                setValue(e.target.value);
+                if (formatError) setFormatError(null);
+              }}
+              placeholder={`Enter ${setting.label}`}
+              className="h-8 font-mono text-xs"
+              autoFocus
+            />
+            <Button
+              size="sm"
+              className="h-8 gap-1 text-xs"
+              onClick={handleSave}
+              disabled={saveAndVerify.isPending || !value}
+            >
+              {saveAndVerify.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Save className="h-3 w-3" />
+              )}
+              {testService ? "Save & Verify" : "Save"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+          {formatError && (
+            <p className="text-[11px] text-destructive">{formatError}</p>
+          )}
+          {!formatError && testService && (
+            <p className="text-[11px] text-muted-foreground">
+              Will run the {testService.replace("_", " ")} test automatically after saving.
+            </p>
+          )}
+        </div>
+      )}
+
+      {verifyResult && !editing && (
+        <div
+          className={`mt-2 rounded border px-2.5 py-1.5 text-[11px] ${
+            verifyResult.ok
+              ? "border-success/30 bg-success/5 text-success"
+              : "border-destructive/30 bg-destructive/5 text-destructive"
+          }`}
+        >
+          <div className="flex items-center gap-1.5">
+            {verifyResult.ok ? (
+              <CheckCircle2 className="h-3 w-3" />
+            ) : (
+              <AlertCircle className="h-3 w-3" />
+            )}
+            <span className="font-medium">{verifyResult.message}</span>
+          </div>
+          {verifyResult.detail && (
+            <p className="mt-0.5 pl-4 font-mono opacity-80">{verifyResult.detail}</p>
+          )}
         </div>
       )}
 
@@ -597,6 +703,140 @@ function SettingRow({ setting, onUpdated }: { setting: PlatformSetting; onUpdate
     </div>
   );
 }
+
+function WebhookStatusCard() {
+  const fetchStatus = useServerFn(getPaystackWebhookStatus);
+  const { data, isFetching, refetch } = useQuery({
+    queryKey: ["paystack-webhook-status"],
+    queryFn: () => fetchStatus(),
+    staleTime: 30_000,
+  });
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <CreditCard className="h-5 w-5" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Paystack Webhook Status</CardTitle>
+              <CardDescription className="text-xs">
+                Receipts logged in <span className="font-mono">payment_webhook_events</span>
+              </CardDescription>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 text-xs"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <PlayCircle className="h-3 w-3" />}
+            Refresh
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 text-xs">
+        {!data && isFetching && <p className="text-muted-foreground">Loading…</p>}
+        {data && (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="Secret" value={data.configured ? "Configured" : "Missing"} good={data.configured} />
+              <Stat label="Total" value={String(data.total)} />
+              <Stat label="Last 24h" value={String(data.last24h)} />
+              <Stat
+                label="Unprocessed"
+                value={String(data.unprocessed)}
+                good={data.unprocessed === 0}
+              />
+            </div>
+            {data.lastEvent ? (
+              <div className="rounded border border-border bg-muted/40 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-semibold">{data.lastEvent.event_type}</span>
+                  <span className="text-muted-foreground">
+                    {new Date(data.lastEvent.received_at).toLocaleString()}
+                  </span>
+                </div>
+                {data.lastEvent.reference && (
+                  <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                    ref: {data.lastEvent.reference}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No webhook events received yet.</p>
+            )}
+            {data.recent.length > 1 && (
+              <ul className="divide-y divide-border rounded border border-border">
+                {data.recent.slice(1).map((e) => (
+                  <li key={e.id} className="flex items-center justify-between px-3 py-1.5">
+                    <span className="font-mono">{e.event_type}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(e.received_at).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Stat({ label, value, good }: { label: string; value: string; good?: boolean }) {
+  return (
+    <div className="rounded border border-border bg-background px-2.5 py-1.5">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-0.5 font-semibold ${good === true ? "text-success" : good === false ? "text-destructive" : ""}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function LiveChatPreviewCard() {
+  const [previewing, setPreviewing] = useState(false);
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <MessageCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Live Chat Preview</CardTitle>
+            <CardDescription className="text-xs">
+              The widget loads on the public storefront only. Preview it here without leaving admin.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => setPreviewing((p) => !p)}
+        >
+          <MessageCircle className="h-3.5 w-3.5" />
+          {previewing ? "Stop preview" : "Preview widget"}
+        </Button>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Saves to current settings are picked up automatically. If nothing appears, confirm the
+          active provider and its identifiers above.
+        </p>
+        {previewing && <LiveChatWidget force />}
+      </CardContent>
+    </Card>
+  );
+}
+
 
 function AddKeyDialog({ onAdded }: { onAdded: () => void }) {
   const [open, setOpen] = useState(false);

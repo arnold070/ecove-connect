@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronLeft,
   Bell,
+  Rocket,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
 
@@ -32,10 +33,10 @@ const NAV: { title: string; items: AdminNavLink[] }[] = [
   {
     title: "Platform",
     items: [
+      { to: "/admin/readiness", label: "Production readiness", icon: <Rocket className="h-4 w-4" /> },
       { to: "/admin/settings", label: "API Keys & Integrations", icon: <Settings className="h-4 w-4" /> },
       { to: "/admin/paystack", label: "Paystack diagnostics", icon: <Stethoscope className="h-4 w-4" /> },
       { to: "/admin/diagnostics", label: "Diagnostics", icon: <Stethoscope className="h-4 w-4" /> },
-
     ],
   },
 ];

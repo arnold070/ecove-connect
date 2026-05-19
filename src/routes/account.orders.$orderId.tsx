@@ -21,7 +21,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SiteHeader } from "@/components/site-header";
+import { RefundStatusTimeline, type RefundStatus } from "@/components/payout-timeline";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/account/orders/$orderId")({
   component: OrderDetail,
@@ -122,11 +124,18 @@ function OrderDetail() {
                               />
                             )}
                             {rf && (
-                              <Badge variant="secondary">
-                                Refund: {rf.status}
-                              </Badge>
+                              <div className="w-full pt-2">
+                                <RefundStatusTimeline
+                                  status={rf.status as RefundStatus}
+                                  createdAt={rf.created_at}
+                                  updatedAt={rf.updated_at}
+                                  processedAt={rf.processed_at}
+                                  adminNote={rf.admin_note}
+                                />
+                              </div>
                             )}
                           </div>
+
                         </CardContent>
                       </Card>
                     );

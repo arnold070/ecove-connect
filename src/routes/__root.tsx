@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/auth/AuthProvider";
+import { LiveChatWidget } from "@/components/live-chat-widget";
 
 import appCss from "../styles.css?url";
 
@@ -171,6 +172,7 @@ function RootComponent() {
   return (
     <AuthProvider>
       <Outlet />
+      <LiveChatWidget />
       <Toaster richColors position="top-right" />
     </AuthProvider>
   );

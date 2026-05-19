@@ -150,16 +150,39 @@ async function testSmtp(): Promise<TestResult> {
   }
 }
 
+async function testResend(): Promise<TestResult> {
+  const key = await getPlatformValue("RESEND_API_KEY");
+  if (!key) return { ok: false, message: "RESEND_API_KEY is not set" };
+  try {
+    const res = await fetch("https://api.resend.com/domains", {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (res.ok) {
+      const from = await getPlatformValue("RESEND_FROM_EMAIL");
+      return {
+        ok: true,
+        message: "Resend key authenticated successfully",
+        detail: from ? `from=${from}` : "No RESEND_FROM_EMAIL set",
+      };
+    }
+    const json = (await res.json().catch(() => ({}))) as { message?: string };
+    return { ok: false, message: `Resend auth failed (${res.status})`, detail: json.message };
+  } catch (e) {
+    return { ok: false, message: "Could not reach Resend", detail: (e as Error).message };
+  }
+}
+
 const testers: Record<string, () => Promise<TestResult>> = {
   sentry: testSentry,
   paystack: testPaystack,
   stripe: testStripe,
   smtp: testSmtp,
   cloudinary: testCloudinary,
+  resend: testResend,
 };
 
 const testSchema = z.object({
-  service: z.enum(["sentry", "paystack", "stripe", "smtp", "cloudinary"]),
+  service: z.enum(["sentry", "paystack", "stripe", "smtp", "cloudinary", "resend"]),
 });
 
 export const testPlatformService = createServerFn({ method: "POST" })

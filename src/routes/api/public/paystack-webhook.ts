@@ -191,45 +191,54 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
               .maybeSingle();
             if (payout) {
               if (eventType === "transfer.success" && payout.status !== "paid") {
-                await supabaseAdmin
+                // Atomic transition: only one webhook delivery can flip
+                // status from non-paid → paid. Subsequent retries see
+                // status='paid' and skip ledger insertion entirely.
+                const { data: updated, error: upErr } = await supabaseAdmin
                   .from("payout_requests")
                   .update({
                     status: "paid",
                     processed_at: new Date().toISOString(),
                   })
-                  .eq("id", payout.id);
-                await supabaseAdmin.from("vendor_ledger").insert({
-                  vendor_id: payout.vendor_id,
-                  entry_type: "payout",
-                  amount_kobo: -Math.abs(payout.amount_kobo),
-                  payout_id: payout.id,
-                  note: `Paystack transfer ${transferRef}`,
-                });
-                // Email vendor owner
-                try {
-                  const { data: v } = await supabaseAdmin
-                    .from("vendors")
-                    .select("business_name, store_name, owner_id")
-                    .eq("id", payout.vendor_id)
-                    .maybeSingle();
-                  if (v?.owner_id) {
-                    const { data: u } = await supabaseAdmin
-                      .from("profiles")
-                      .select("email")
-                      .eq("id", v.owner_id)
+                  .eq("id", payout.id)
+                  .neq("status", "paid")
+                  .select("id")
+                  .maybeSingle();
+                if (!upErr && updated) {
+                  await supabaseAdmin.from("vendor_ledger").insert({
+                    vendor_id: payout.vendor_id,
+                    entry_type: "payout",
+                    amount_kobo: -Math.abs(payout.amount_kobo),
+                    payout_id: payout.id,
+                    note: `Paystack transfer ${transferRef}`,
+                  });
+                  // Email vendor owner
+                  try {
+                    const { data: v } = await supabaseAdmin
+                      .from("vendors")
+                      .select("business_name, store_name, owner_id")
+                      .eq("id", payout.vendor_id)
                       .maybeSingle();
-                    if (u?.email) {
-                      await sendPayoutPaidEmail({
-                        to: u.email,
-                        amountKobo: payout.amount_kobo,
-                        reference: transferRef,
-                        vendorName: v.business_name ?? v.store_name ?? undefined,
-                      });
+                    if (v?.owner_id) {
+                      const { data: u } = await supabaseAdmin
+                        .from("profiles")
+                        .select("email")
+                        .eq("id", v.owner_id)
+                        .maybeSingle();
+                      if (u?.email) {
+                        await sendPayoutPaidEmail({
+                          to: u.email,
+                          amountKobo: payout.amount_kobo,
+                          reference: transferRef,
+                          vendorName: v.business_name ?? v.store_name ?? undefined,
+                        });
+                      }
                     }
+                  } catch (e) {
+                    console.error("[paystack-webhook] payout email failed", e);
                   }
-                } catch (e) {
-                  console.error("[paystack-webhook] payout email failed", e);
                 }
+
               } else if (eventType === "transfer.failed") {
                 await supabaseAdmin
                   .from("payout_requests")

@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-import { VendorShell } from "@/components/vendor-shell";
+import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -583,7 +583,7 @@ function VendorDiagnosticsPage() {
   const hasResults = steps.some((s) => s.status !== "pending");
 
   return (
-    <VendorShell
+    <AdminShell
       title="End-to-end diagnostics"
       subtitle="Run the vendor onboarding + product creation flow and see exactly where it breaks"
     >
@@ -909,6 +909,6 @@ function VendorDiagnosticsPage() {
           </Alert>
         )}
       </div>
-    </VendorShell>
+    </AdminShell>
   );
 }

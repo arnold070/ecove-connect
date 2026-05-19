@@ -14,7 +14,7 @@ import {
   Play,
 } from "lucide-react";
 
-import { VendorShell } from "@/components/vendor-shell";
+import { AdminShell } from "@/components/admin-shell";
 import { useAuth } from "@/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -68,11 +68,11 @@ function AdminProductsPage() {
   }
   if (!hasRole("admin")) {
     return (
-      <VendorShell title="Product moderation" subtitle="Admin only">
+      <AdminShell title="Product moderation" subtitle="Admin only">
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">
           You don&apos;t have permission to view this page.
         </div>
-      </VendorShell>
+      </AdminShell>
     );
   }
   return <Inner />;
@@ -92,7 +92,7 @@ function Inner() {
   if (selected) return <Detail id={selected} onBack={() => setSelected(null)} />;
 
   return (
-    <VendorShell title="Product moderation" subtitle="Approve, reject, or suspend vendor products">
+    <AdminShell title="Product moderation" subtitle="Approve, reject, or suspend vendor products">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Select value={status} onValueChange={(v) => setStatus(v as ProductStatus)}>
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
@@ -157,7 +157,7 @@ function Inner() {
           )}
         </CardContent>
       </Card>
-    </VendorShell>
+    </AdminShell>
   );
 }
 
@@ -206,11 +206,11 @@ function Detail({ id, onBack }: { id: string; onBack: () => void }) {
 
   if (isLoading || !data) {
     return (
-      <VendorShell title="Review product" subtitle="Loading…">
+      <AdminShell title="Review product" subtitle="Loading…">
         <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
         </div>
-      </VendorShell>
+      </AdminShell>
     );
   }
 
@@ -219,7 +219,7 @@ function Detail({ id, onBack }: { id: string; onBack: () => void }) {
   const status: ProductStatus = p.status;
 
   return (
-    <VendorShell title={p.title} subtitle={`Vendor • ${p.vendors?.store_name ?? "—"}`}>
+    <AdminShell title={p.title} subtitle={`Vendor • ${p.vendors?.store_name ?? "—"}`}>
       <Button variant="ghost" size="sm" onClick={onBack} className="mb-4">
         <ArrowLeft className="mr-1 h-4 w-4" /> Back
       </Button>
@@ -355,7 +355,7 @@ function Detail({ id, onBack }: { id: string; onBack: () => void }) {
         loading={suspendMut.isPending}
         confirmLabel="Confirm suspension"
       />
-    </VendorShell>
+    </AdminShell>
   );
 }
 

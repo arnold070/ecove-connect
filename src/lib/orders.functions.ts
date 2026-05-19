@@ -169,12 +169,11 @@ async function queryAdminRefunds(
   }
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  let rows = (data ?? []) as Array<Record<string, unknown>>;
+  let rows = (data ?? []) as AdminRefundRow[];
 
-  // buyer_email / free-text search → resolve via profiles, then filter in-memory
   if (filters?.buyer_email || filters?.query) {
     const buyerIds = Array.from(
-      new Set(rows.map((r) => r.buyer_id as string).filter(Boolean)),
+      new Set(rows.map((r) => r.buyer_id).filter(Boolean)),
     );
     if (buyerIds.length) {
       const { data: profs } = await supabase
@@ -185,7 +184,7 @@ async function queryAdminRefunds(
         (profs ?? []).map((p: { id: string; email: string | null }) => [p.id, p.email ?? ""]),
       );
       for (const r of rows) {
-        r.buyer_email = emailById.get(r.buyer_id as string) ?? null;
+        r.buyer_email = emailById.get(r.buyer_id) ?? null;
       }
       if (filters.buyer_email) {
         const needle = filters.buyer_email.toLowerCase();
@@ -196,8 +195,7 @@ async function queryAdminRefunds(
       if (filters.query) {
         const needle = filters.query.toLowerCase();
         rows = rows.filter((r) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const it = (r as any).item;
+          const it = r.item;
           return (
             String(it?.order?.order_number ?? "").toLowerCase().includes(needle) ||
             String(it?.product_title ?? "").toLowerCase().includes(needle) ||

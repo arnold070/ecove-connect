@@ -144,6 +144,36 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
               .from("payment_webhook_events")
               .update({ processed_at: new Date().toISOString() })
               .eq("event_id", eventId);
+
+            // 3. Email buyer receipt (best-effort, never blocks webhook)
+            try {
+              const { data: full } = await supabaseAdmin
+                .from("orders")
+                .select(
+                  "id, order_number, total_kobo, customer_id, items:order_items(product_title, quantity, unit_price_kobo)",
+                )
+                .eq("id", orderId)
+                .maybeSingle();
+              const buyerEmail = body?.data?.customer?.email as string | undefined;
+              if (full && buyerEmail) {
+                const origin = new URL(request.url).origin;
+                await sendOrderReceipt({
+                  to: buyerEmail,
+                  orderNumber: String(full.order_number ?? full.id),
+                  totalKobo: Number(full.total_kobo),
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  items: ((full.items as any[]) ?? []).map((i) => ({
+                    title: i.product_title,
+                    qty: i.quantity,
+                    unitKobo: i.unit_price_kobo,
+                  })),
+                  orderId: full.id,
+                  appOrigin: origin,
+                });
+              }
+            } catch (e) {
+              console.error("[paystack-webhook] receipt email failed", e);
+            }
           }
         }
 

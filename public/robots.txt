@@ -6,5 +6,6 @@ Disallow: /account
 Disallow: /checkout
 Disallow: /cart
 Disallow: /api/
+Allow: /vendors/
 
 Sitemap: https://ecove-connect.lovable.app/sitemap.xml

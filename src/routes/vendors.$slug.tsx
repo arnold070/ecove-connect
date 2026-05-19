@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/site-header";
 import { formatNaira } from "@/lib/currency";
 import { absoluteUrl } from "@/lib/site-url";
-import { getPublicVendorBySlug } from "@/lib/public-vendors.functions";
+import { getPublicVendorBySlug, type PublicVendor } from "@/lib/public-vendors.functions";
 
 export const Route = createFileRoute("/vendors/$slug")({
   loader: async ({ params }) => {
@@ -95,7 +95,7 @@ function VendorPage() {
           <p className="mt-2 text-sm text-muted-foreground">No live products yet.</p>
         ) : (
           <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {vendor.products.map((p) => (
+            {vendor.products.map((p: PublicVendor["products"][number]) => (
               <Link
                 key={p.id}
                 to="/products/$slug"

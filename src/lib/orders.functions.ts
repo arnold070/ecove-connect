@@ -247,8 +247,6 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
     if (!rf) throw new Error("Refund request not found");
     if (rf.status !== "requested") throw new Error("Already decided");
 
-    const ctx = await loadRefundContext(supabase, data.id);
-
     if (!data.approve) {
       await supabase
         .from("refund_requests")
@@ -259,15 +257,7 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
           processed_at: new Date().toISOString(),
         })
         .eq("id", data.id);
-      if (ctx.buyerEmail && ctx.productTitle) {
-        await sendRefundDecisionEmail({
-          to: ctx.buyerEmail,
-          status: "rejected",
-          productTitle: ctx.productTitle,
-          amountKobo: ctx.amountKobo,
-          note: data.note,
-        }).catch(() => undefined);
-      }
+      await notifyRefundParties(supabase, data.id, "rejected", data.note);
       return { success: true, status: "rejected" };
     }
 
@@ -288,15 +278,7 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
 
-    if (ctx.buyerEmail && ctx.productTitle) {
-      await sendRefundDecisionEmail({
-        to: ctx.buyerEmail,
-        status: "approved",
-        productTitle: ctx.productTitle,
-        amountKobo: ctx.amountKobo,
-        note: data.note,
-      }).catch(() => undefined);
-    }
+    await notifyRefundParties(supabase, data.id, "approved", data.note);
     return { success: true, status: "refunded" };
   });
 

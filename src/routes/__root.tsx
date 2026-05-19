@@ -172,6 +172,7 @@ function RootComponent() {
   return (
     <AuthProvider>
       <Outlet />
+      <LiveChatWidget />
       <Toaster richColors position="top-right" />
     </AuthProvider>
   );

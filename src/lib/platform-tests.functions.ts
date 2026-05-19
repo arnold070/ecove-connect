@@ -359,6 +359,7 @@ const testers: Record<string, () => Promise<TestResult>> = {
   cloudinary: testCloudinary,
   resend: testResend,
   rate_limit: testRateLimit,
+  webhook_replay: testWebhookReplay,
 };
 
 const testSchema = z.object({
@@ -371,6 +372,7 @@ const testSchema = z.object({
     "cloudinary",
     "resend",
     "rate_limit",
+    "webhook_replay",
   ]),
 });
 

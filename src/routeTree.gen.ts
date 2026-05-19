@@ -31,6 +31,7 @@ import { Route as VendorProductsPendingRouteImport } from './routes/vendor.produ
 import { Route as VendorProductsNewRouteImport } from './routes/vendor.products.new'
 import { Route as VendorAdminProductsRouteImport } from './routes/vendor.admin.products'
 import { Route as VendorAdminApprovalsRouteImport } from './routes/vendor.admin.approvals'
+import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 
 const VendorRoute = VendorRouteImport.update({
   id: '/vendor',
@@ -142,6 +143,12 @@ const VendorAdminApprovalsRoute = VendorAdminApprovalsRouteImport.update({
   path: '/admin/approvals',
   getParentRoute: () => VendorRoute,
 } as any)
+const ApiPublicPaystackWebhookRoute =
+  ApiPublicPaystackWebhookRouteImport.update({
+    id: '/api/public/paystack-webhook',
+    path: '/api/public/paystack-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -161,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/vendor/': typeof VendorIndexRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
   '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -184,6 +192,7 @@ export interface FileRoutesByTo {
   '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/vendor': typeof VendorIndexRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
   '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -209,6 +218,7 @@ export interface FileRoutesById {
   '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/vendor/': typeof VendorIndexRoute
+  '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
   '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/vendor/settings'
     | '/vendor/store'
     | '/vendor/'
+    | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
     | '/vendor/admin/products'
     | '/vendor/products/new'
@@ -258,6 +269,7 @@ export interface FileRouteTypes {
     | '/vendor/settings'
     | '/vendor/store'
     | '/vendor'
+    | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
     | '/vendor/admin/products'
     | '/vendor/products/new'
@@ -282,6 +294,7 @@ export interface FileRouteTypes {
     | '/vendor/settings'
     | '/vendor/store'
     | '/vendor/'
+    | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
     | '/vendor/admin/products'
     | '/vendor/products/new'
@@ -294,6 +307,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   VendorRoute: typeof VendorRouteWithChildren
+  ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -452,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorAdminApprovalsRouteImport
       parentRoute: typeof VendorRoute
     }
+    '/api/public/paystack-webhook': {
+      id: '/api/public/paystack-webhook'
+      path: '/api/public/paystack-webhook'
+      fullPath: '/api/public/paystack-webhook'
+      preLoaderRoute: typeof ApiPublicPaystackWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -505,6 +526,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   VendorRoute: VendorRouteWithChildren,
+  ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

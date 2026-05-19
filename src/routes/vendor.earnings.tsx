@@ -5,10 +5,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { VendorShell } from "@/components/vendor-shell";
 import {
   getMyEarnings,
+  getMyPayouts,
   requestPayout,
   cancelPayoutRequest,
 } from "@/lib/payouts.functions";
+import { PayoutStatusTimeline, type PayoutStatus } from "@/components/payout-timeline";
 import { formatKobo } from "@/lib/currency";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +38,12 @@ function VendorEarnings() {
     queryKey: ["my-earnings"],
     queryFn: () => fetchEarnings(),
   });
+  const fetchPayouts = useServerFn(getMyPayouts);
+  const { data: pData } = useQuery({
+    queryKey: ["my-payouts"],
+    queryFn: () => fetchPayouts(),
+  });
+
 
   return (
     <VendorShell title="Earnings & Payouts" subtitle="Your sales, balance, and withdrawal history">
@@ -63,9 +72,42 @@ function VendorEarnings() {
           <div className="flex justify-end">
             <RequestPayoutDialog
               availableKobo={data.available_kobo}
-              onDone={() => qc.invalidateQueries({ queryKey: ["my-earnings"] })}
+              onDone={() => {
+                qc.invalidateQueries({ queryKey: ["my-earnings"] });
+                qc.invalidateQueries({ queryKey: ["my-payouts"] });
+              }}
             />
           </div>
+
+          {pData && pData.payouts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Withdrawal requests</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {pData.payouts.map((p) => (
+                  <div key={p.id} className="rounded border p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="font-semibold">{formatKobo(p.amount_kobo)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {p.bank_name} · ****{String(p.account_number ?? "").slice(-4)}
+                      </span>
+                    </div>
+                    <PayoutStatusTimeline
+                      status={p.status as PayoutStatus}
+                      createdAt={p.created_at}
+                      processedAt={p.processed_at}
+                      failureReason={p.failure_reason}
+                      reference={p.paystack_transfer_ref}
+                      compact
+                    />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+
+
 
           <Card>
             <CardHeader>

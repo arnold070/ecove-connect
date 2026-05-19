@@ -34,6 +34,7 @@ import { Route as ProductsSlugRouteImport } from './routes/products.$slug'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminProductsRouteImport } from './routes/admin.products'
+import { Route as AdminPaystackRouteImport } from './routes/admin.paystack'
 import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
 import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
 import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
@@ -173,6 +174,11 @@ const AdminProductsRoute = AdminProductsRouteImport.update({
   path: '/products',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPaystackRoute = AdminPaystackRouteImport.update({
+  id: '/paystack',
+  path: '/paystack',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
   id: '/payouts',
   path: '/payouts',
@@ -253,6 +259,7 @@ export interface FileRoutesByFullPath {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/admin/paystack': typeof AdminPaystackRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -291,6 +298,7 @@ export interface FileRoutesByTo {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/admin/paystack': typeof AdminPaystackRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -332,6 +340,7 @@ export interface FileRoutesById {
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/admin/paystack': typeof AdminPaystackRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/orders'
     | '/admin/payouts'
+    | '/admin/paystack'
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
@@ -412,6 +422,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/orders'
     | '/admin/payouts'
+    | '/admin/paystack'
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
@@ -452,6 +463,7 @@ export interface FileRouteTypes {
     | '/admin/diagnostics'
     | '/admin/orders'
     | '/admin/payouts'
+    | '/admin/paystack'
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
@@ -670,6 +682,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProductsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/paystack': {
+      id: '/admin/paystack'
+      path: '/paystack'
+      fullPath: '/admin/paystack'
+      preLoaderRoute: typeof AdminPaystackRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/payouts': {
       id: '/admin/payouts'
       path: '/payouts'
@@ -769,6 +788,7 @@ interface AdminRouteChildren {
   AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPayoutsRoute: typeof AdminPayoutsRoute
+  AdminPaystackRoute: typeof AdminPaystackRoute
   AdminProductsRoute: typeof AdminProductsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -779,6 +799,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDiagnosticsRoute: AdminDiagnosticsRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPayoutsRoute: AdminPayoutsRoute,
+  AdminPaystackRoute: AdminPaystackRoute,
   AdminProductsRoute: AdminProductsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,

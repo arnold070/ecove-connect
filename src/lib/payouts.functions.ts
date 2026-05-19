@@ -104,6 +104,27 @@ export const getMyEarnings = createServerFn({ method: "GET" })
     };
   });
 
+// Vendor: list my payout requests (for status timeline)
+export const getMyPayouts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const vendor = await getMyVendorOrThrow(supabase, userId);
+    const { data, error } = await supabase
+      .from("payout_requests")
+      .select(
+        `id, amount_kobo, status, bank_name, account_number, account_name,
+         paystack_transfer_ref, failure_reason, created_at, processed_at`,
+      )
+      .eq("vendor_id", vendor.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return { payouts: data ?? [] };
+  });
+
+
+
 // ---------------------------------------------------------------------------
 // Vendor: request payout
 // ---------------------------------------------------------------------------

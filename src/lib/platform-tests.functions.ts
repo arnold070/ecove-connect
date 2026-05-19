@@ -200,15 +200,25 @@ async function testRateLimit(): Promise<TestResult> {
   // that rate-limiting (per-IP) kicks in. We expect 401 for the first few,
   // then 429 once the limit is exceeded.
   try {
-    const { getRequestHost, getRequestURL } = await import("@tanstack/react-start/server");
+    const { getRequestHost, getRequestURL } = (await import(
+      "@tanstack/react-start/server"
+    )) as { getRequestHost?: () => string; getRequestURL?: () => URL };
     let origin = "";
     try {
-      const u = getRequestURL();
-      origin = `${u.protocol}//${u.host}`;
+      const u = getRequestURL?.();
+      if (u) origin = `${u.protocol}//${u.host}`;
     } catch {
-      const host = getRequestHost();
-      origin = host ? `https://${host}` : "";
+      // ignore
     }
+    if (!origin) {
+      try {
+        const host = getRequestHost?.();
+        if (host) origin = `https://${host}`;
+      } catch {
+        // ignore
+      }
+    }
+
     if (!origin) return { ok: false, message: "Could not determine request origin" };
     const target = `${origin}/api/public/paystack-webhook`;
     const body = JSON.stringify({ event: "ping" });

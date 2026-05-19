@@ -10,6 +10,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getPlatformValue } from "@/lib/platform-settings.server";
+import { sendOrderReceipt, sendPayoutPaidEmail } from "@/lib/email.server";
 
 const RATE_LIMIT_PER_MIN = 120;
 

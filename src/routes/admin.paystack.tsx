@@ -19,7 +19,7 @@ export const Route = createFileRoute("/admin/paystack")({
   component: AdminPaystackDiagnostics,
 });
 
-type TestKey = "paystack" | "paystack_webhook" | "rate_limit";
+type TestKey = "paystack" | "paystack_webhook" | "rate_limit" | "webhook_replay";
 type TestState = {
   running: boolean;
   ok?: boolean;
@@ -40,6 +40,7 @@ function AdminPaystackDiagnostics() {
     paystack: { running: false },
     paystack_webhook: { running: false },
     rate_limit: { running: false },
+    webhook_replay: { running: false },
   });
 
   const webhookUrl =

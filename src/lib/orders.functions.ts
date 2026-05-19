@@ -130,6 +130,20 @@ const refundFilterSchema = z
   })
   .optional();
 
+type AdminRefundRow = {
+  id: string;
+  reason: string;
+  status: string;
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string | null;
+  processed_at: string | null;
+  buyer_id: string;
+  buyer_email?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: any;
+};
+
 async function queryAdminRefunds(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,

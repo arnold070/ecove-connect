@@ -106,7 +106,16 @@ function PayoutsTab() {
             {p.failure_reason && (
               <p className="text-xs text-destructive">{p.failure_reason}</p>
             )}
+            <PayoutStatusTimeline
+              status={p.status as PayoutStatus}
+              createdAt={p.created_at}
+              processedAt={(p as { processed_at?: string | null }).processed_at}
+              failureReason={p.failure_reason}
+              reference={p.paystack_transfer_ref}
+              compact
+            />
             {["requested", "approved"].includes(p.status) && (
+
               <div className="flex gap-2 pt-2">
                 <Button size="sm" onClick={() => approveM.mutate(p.id)} disabled={approveM.isPending}>
                   Approve & Pay

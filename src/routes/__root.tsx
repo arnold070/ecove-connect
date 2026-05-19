@@ -142,6 +142,12 @@ export const Route = createRootRoute({
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "ecove — Nigeria's multi-vendor marketplace" },
+      { name: "description", content: "Ecove is a Nigerian multi-vendor eCommerce marketplace for customers, vendors, and admins." },
+      { property: "og:description", content: "Ecove is a Nigerian multi-vendor eCommerce marketplace for customers, vendors, and admins." },
+      { name: "twitter:description", content: "Ecove is a Nigerian multi-vendor eCommerce marketplace for customers, vendors, and admins." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4f4cecb9-f764-4ff5-b45e-b70dd84d9755/id-preview-41c486da--5bdff5a2-d31b-47f9-8ae3-a463b33a7219.lovable.app-1779203521202.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/4f4cecb9-f764-4ff5-b45e-b70dd84d9755/id-preview-41c486da--5bdff5a2-d31b-47f9-8ae3-a463b33a7219.lovable.app-1779203521202.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

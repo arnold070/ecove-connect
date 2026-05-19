@@ -14,6 +14,7 @@ import {
   sendOrderReceipt,
   sendPayoutPaidEmail,
   sendRefundDecisionEmail,
+  sendVendorRefundEmail,
 } from "@/lib/email.server";
 
 const RATE_LIMIT_PER_MIN = 120;

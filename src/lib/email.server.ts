@@ -253,22 +253,6 @@ export async function sendVendorRefundEmail(args: {
     ),
   });
 }
-  const status: RefundEmailStatus =
-    args.status ?? (args.approved ? "approved" : "rejected");
-  const copy = REFUND_COPY[status];
-  return sendEmail({
-    to: args.to,
-    subject: copy.subject,
-    html: shell(
-      copy.title,
-      `<p><strong>Item:</strong> ${escapeHtml(args.productTitle)}</p>
-       <p><strong>Amount:</strong> ${fmtNaira(args.amountKobo)}</p>
-       ${args.note ? `<p><strong>Note from support:</strong> ${escapeHtml(args.note)}</p>` : ""}
-       ${args.reference ? `<p style="color:#666;font-size:13px">Reference: <code>${escapeHtml(args.reference)}</code></p>` : ""}
-       <p>${copy.body}</p>`,
-    ),
-  });
-}
 
 function escapeHtml(s: string): string {
   return s

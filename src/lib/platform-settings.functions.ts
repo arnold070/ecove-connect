@@ -87,6 +87,27 @@ export const updatePlatformSetting = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+const revealSchema = z.object({ id: z.string().uuid() });
+
+/**
+ * Admin-only: returns the raw value of a single setting (used for the
+ * "reveal" toggle in the settings UI). Never returns the value to non-admins.
+ */
+export const revealPlatformSetting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => revealSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { data: row, error } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("id", data.id)
+      .single();
+    if (error) throw new Error(error.message);
+    return { value: (row?.value as string | undefined) ?? "" };
+  });
+
 const addKeySchema = z.object({
   key: z.string().min(1).max(100).regex(/^[A-Z][A-Z0-9_]*$/),
   label: z.string().min(1).max(200),

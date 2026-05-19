@@ -195,6 +195,42 @@ async function testPaystackWebhook(): Promise<TestResult> {
   }
 }
 
+async function testRateLimit(): Promise<TestResult> {
+  // Hammer the public webhook with intentionally-invalid signatures to verify
+  // that rate-limiting (per-IP) kicks in. We expect 401 for the first few,
+  // then 429 once the limit is exceeded.
+  try {
+    const url = new URL("/api/public/paystack-webhook", "http://localhost").pathname;
+    const target =
+      (typeof globalThis !== "undefined" &&
+        (globalThis as { location?: { origin?: string } }).location?.origin) ||
+      "";
+    const base = target || "";
+    const body = JSON.stringify({ event: "ping" });
+    const codes: number[] = [];
+    const N = 25;
+    for (let i = 0; i < N; i++) {
+      const res = await fetch(`${base}${url}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-paystack-signature": "bogus" },
+        body,
+      });
+      codes.push(res.status);
+    }
+    const got429 = codes.includes(429);
+    const got401 = codes.includes(401);
+    return {
+      ok: got429 && got401,
+      message: got429
+        ? `Rate-limit fired (401×${codes.filter((c) => c === 401).length}, 429×${codes.filter((c) => c === 429).length})`
+        : `No 429 seen in ${N} requests — limiter may be misconfigured`,
+      detail: `codes=${codes.join(",")}`,
+    };
+  } catch (e) {
+    return { ok: false, message: "Rate-limit harness error", detail: (e as Error).message };
+  }
+}
+
 const testers: Record<string, () => Promise<TestResult>> = {
   sentry: testSentry,
   paystack: testPaystack,
@@ -203,10 +239,20 @@ const testers: Record<string, () => Promise<TestResult>> = {
   smtp: testSmtp,
   cloudinary: testCloudinary,
   resend: testResend,
+  rate_limit: testRateLimit,
 };
 
 const testSchema = z.object({
-  service: z.enum(["sentry", "paystack", "paystack_webhook", "stripe", "smtp", "cloudinary", "resend"]),
+  service: z.enum([
+    "sentry",
+    "paystack",
+    "paystack_webhook",
+    "stripe",
+    "smtp",
+    "cloudinary",
+    "resend",
+    "rate_limit",
+  ]),
 });
 
 export const testPlatformService = createServerFn({ method: "POST" })
@@ -217,3 +263,4 @@ export const testPlatformService = createServerFn({ method: "POST" })
     await assertAdmin(supabase, userId);
     return testers[data.service]!();
   });
+

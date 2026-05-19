@@ -194,13 +194,16 @@ const TEST_SERVICE_FOR_CATEGORY: Record<string, "sentry" | "paystack" | "stripe"
 };
 
 function CategoryTestButtons({ category }: { category: string }) {
-  const services: Array<{ id: "sentry" | "paystack" | "stripe" | "smtp" | "cloudinary"; label: string }> = [];
+  const services: Array<{ id: "sentry" | "paystack" | "stripe" | "smtp" | "cloudinary" | "resend"; label: string }> = [];
   if (category === "monitoring") services.push({ id: "sentry", label: "Test Sentry" });
   if (category === "payments") {
     services.push({ id: "paystack", label: "Test Paystack" });
     services.push({ id: "stripe", label: "Test Stripe" });
   }
-  if (category === "email") services.push({ id: "smtp", label: "Test SMTP" });
+  if (category === "email") {
+    services.push({ id: "smtp", label: "Test SMTP" });
+    services.push({ id: "resend", label: "Test Resend" });
+  }
   if (category === "storage") services.push({ id: "cloudinary", label: "Test Cloudinary" });
   if (services.length === 0) return null;
   return (
@@ -218,7 +221,7 @@ function TestServiceButton({
   service,
   label,
 }: {
-  service: "sentry" | "paystack" | "stripe" | "smtp" | "cloudinary";
+  service: "sentry" | "paystack" | "stripe" | "smtp" | "cloudinary" | "resend";
   label: string;
 }) {
   const testFn = useServerFn(testPlatformService);

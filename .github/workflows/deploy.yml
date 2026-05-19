@@ -1,0 +1,55 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  readiness-gate:
+    name: Production readiness gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Probe /api/public/readiness
+        env:
+          PUBLIC_SITE_URL: ${{ secrets.PUBLIC_SITE_URL }}
+          READINESS_PROBE_TOKEN: ${{ secrets.READINESS_PROBE_TOKEN }}
+        run: node scripts/check-readiness.mjs
+
+  deploy:
+    name: Deploy to Hestia
+    needs: readiness-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install
+        run: bun install --frozen-lockfile
+      - name: Build
+        env:
+          VITE_PUBLIC_SITE_URL: ${{ secrets.PUBLIC_SITE_URL }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: bun run build
+      - name: Rsync to Hestia
+        uses: easingthemes/ssh-deploy@v5
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.HESTIA_SSH_KEY }}
+          REMOTE_HOST: ${{ secrets.HESTIA_HOST }}
+          REMOTE_USER: ${{ secrets.HESTIA_USER }}
+          SOURCE: ".output/"
+          TARGET: ${{ secrets.HESTIA_APP_PATH }}
+          ARGS: "-rlgoDzvc --delete"
+      - name: Restart app (PM2)
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.HESTIA_HOST }}
+          username: ${{ secrets.HESTIA_USER }}
+          key: ${{ secrets.HESTIA_SSH_KEY }}
+          script: |
+            cd ${{ secrets.HESTIA_APP_PATH }}
+            pm2 reload ecove || pm2 start server/index.mjs --name ecove

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/site-header";
+import { absoluteUrl } from "@/lib/site-url";
 
 export const Route = createFileRoute("/refund-policy")({
   component: RefundPolicyPage,
@@ -9,9 +10,9 @@ export const Route = createFileRoute("/refund-policy")({
       { name: "description", content: "When and how you can request a refund on ecove orders." },
       { property: "og:title", content: "Refund Policy — ecove" },
       { property: "og:description", content: "When and how refunds are issued on ecove." },
-      { property: "og:url", content: "https://ecove-connect.lovable.app/refund-policy" },
+      { property: "og:url", content: absoluteUrl("/refund-policy") },
     ],
-    links: [{ rel: "canonical", href: "https://ecove-connect.lovable.app/refund-policy" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/refund-policy") }],
   }),
 });
 

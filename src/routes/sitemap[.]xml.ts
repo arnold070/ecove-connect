@@ -1,8 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-const BASE_URL = "https://ecove-connect.lovable.app";
+import { getSiteUrl } from "@/lib/site-url";
 
 interface SitemapEntry {
   path: string;
@@ -15,6 +14,8 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
+        const BASE_URL = getSiteUrl();
+
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "daily", priority: "1.0" },
           { path: "/login", changefreq: "monthly", priority: "0.3" },
@@ -25,22 +26,37 @@ export const Route = createFileRoute("/sitemap.xml")({
         ];
 
         try {
-          const { data: products } = await supabaseAdmin
-            .from("products")
-            .select("slug, updated_at")
-            .eq("status", "approved")
-            .order("updated_at", { ascending: false })
-            .limit(5000);
-          if (products) {
-            for (const p of products as Array<{ slug: string; updated_at: string | null }>) {
-              if (!p.slug) continue;
-              entries.push({
-                path: `/products/${p.slug}`,
-                lastmod: p.updated_at ?? undefined,
-                changefreq: "weekly",
-                priority: "0.8",
-              });
-            }
+          const [{ data: products }, { data: vendors }] = await Promise.all([
+            supabaseAdmin
+              .from("products")
+              .select("slug, updated_at")
+              .eq("status", "approved")
+              .order("updated_at", { ascending: false })
+              .limit(5000),
+            supabaseAdmin
+              .from("vendors")
+              .select("slug, updated_at")
+              .eq("status", "approved")
+              .order("updated_at", { ascending: false })
+              .limit(5000),
+          ]);
+          for (const p of (products ?? []) as Array<{ slug: string; updated_at: string | null }>) {
+            if (!p.slug) continue;
+            entries.push({
+              path: `/products/${p.slug}`,
+              lastmod: p.updated_at ?? undefined,
+              changefreq: "weekly",
+              priority: "0.8",
+            });
+          }
+          for (const v of (vendors ?? []) as Array<{ slug: string; updated_at: string | null }>) {
+            if (!v.slug) continue;
+            entries.push({
+              path: `/vendors/${v.slug}`,
+              lastmod: v.updated_at ?? undefined,
+              changefreq: "weekly",
+              priority: "0.6",
+            });
           }
         } catch {
           /* still serve a valid sitemap if DB lookup fails */

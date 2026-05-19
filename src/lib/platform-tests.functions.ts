@@ -200,17 +200,22 @@ async function testRateLimit(): Promise<TestResult> {
   // that rate-limiting (per-IP) kicks in. We expect 401 for the first few,
   // then 429 once the limit is exceeded.
   try {
-    const url = new URL("/api/public/paystack-webhook", "http://localhost").pathname;
-    const target =
-      (typeof globalThis !== "undefined" &&
-        (globalThis as { location?: { origin?: string } }).location?.origin) ||
-      "";
-    const base = target || "";
+    const { getRequestHost, getRequestURL } = await import("@tanstack/react-start/server");
+    let origin = "";
+    try {
+      const u = getRequestURL();
+      origin = `${u.protocol}//${u.host}`;
+    } catch {
+      const host = getRequestHost();
+      origin = host ? `https://${host}` : "";
+    }
+    if (!origin) return { ok: false, message: "Could not determine request origin" };
+    const target = `${origin}/api/public/paystack-webhook`;
     const body = JSON.stringify({ event: "ping" });
     const codes: number[] = [];
     const N = 25;
     for (let i = 0; i < N; i++) {
-      const res = await fetch(`${base}${url}`, {
+      const res = await fetch(target, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-paystack-signature": "bogus" },
         body,
@@ -230,6 +235,7 @@ async function testRateLimit(): Promise<TestResult> {
     return { ok: false, message: "Rate-limit harness error", detail: (e as Error).message };
   }
 }
+
 
 const testers: Record<string, () => Promise<TestResult>> = {
   sentry: testSentry,

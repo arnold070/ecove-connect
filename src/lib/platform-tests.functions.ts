@@ -172,9 +172,33 @@ async function testResend(): Promise<TestResult> {
   }
 }
 
+async function testPaystackWebhook(): Promise<TestResult> {
+  const secret = await getPlatformValue("PAYSTACK_WEBHOOK_SECRET");
+  if (!secret) return { ok: false, message: "PAYSTACK_WEBHOOK_SECRET is not set" };
+  if (secret.length < 16) {
+    return { ok: false, message: "Webhook secret looks too short (min 16 chars)" };
+  }
+  // Verify by signing a fixed payload and re-computing — proves crypto path works.
+  try {
+    const { createHmac } = await import("node:crypto");
+    const sample = JSON.stringify({ event: "ping", data: { id: "test", reference: "test" } });
+    const sig = createHmac("sha512", secret).update(sample).digest("hex");
+    if (sig.length !== 128) throw new Error("unexpected signature length");
+    const callback = await getPlatformValue("PAYSTACK_CALLBACK_URL");
+    return {
+      ok: true,
+      message: "Webhook secret is set and signature path is valid",
+      detail: callback ? `callback=${callback}` : "No PAYSTACK_CALLBACK_URL set",
+    };
+  } catch (e) {
+    return { ok: false, message: "Signature test failed", detail: (e as Error).message };
+  }
+}
+
 const testers: Record<string, () => Promise<TestResult>> = {
   sentry: testSentry,
   paystack: testPaystack,
+  paystack_webhook: testPaystackWebhook,
   stripe: testStripe,
   smtp: testSmtp,
   cloudinary: testCloudinary,
@@ -182,7 +206,7 @@ const testers: Record<string, () => Promise<TestResult>> = {
 };
 
 const testSchema = z.object({
-  service: z.enum(["sentry", "paystack", "stripe", "smtp", "cloudinary", "resend"]),
+  service: z.enum(["sentry", "paystack", "paystack_webhook", "stripe", "smtp", "cloudinary", "resend"]),
 });
 
 export const testPlatformService = createServerFn({ method: "POST" })

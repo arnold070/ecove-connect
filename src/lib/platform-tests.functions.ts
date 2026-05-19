@@ -155,11 +155,21 @@ const testers: Record<string, () => Promise<TestResult>> = {
   paystack: testPaystack,
   stripe: testStripe,
   smtp: testSmtp,
+  cloudinary: testCloudinary,
 };
 
 const testSchema = z.object({
-  service: z.enum(["sentry", "paystack", "stripe", "smtp"]),
+  service: z.enum(["sentry", "paystack", "stripe", "smtp", "cloudinary"]),
 });
+
+export const testPlatformService = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => testSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    return testers[data.service]!();
+  });
 
 export const testPlatformService = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

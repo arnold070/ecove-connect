@@ -40,6 +40,7 @@ import { Route as VendorProductsIndexRouteImport } from './routes/vendor.product
 import { Route as VendorProductsPendingRouteImport } from './routes/vendor.products.pending'
 import { Route as VendorProductsNewRouteImport } from './routes/vendor.products.new'
 import { Route as VendorAdminProductsRouteImport } from './routes/vendor.admin.products'
+import { Route as VendorAdminOrdersRouteImport } from './routes/vendor.admin.orders'
 import { Route as VendorAdminApprovalsRouteImport } from './routes/vendor.admin.approvals'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 
@@ -198,6 +199,11 @@ const VendorAdminProductsRoute = VendorAdminProductsRouteImport.update({
   path: '/admin/products',
   getParentRoute: () => VendorRoute,
 } as any)
+const VendorAdminOrdersRoute = VendorAdminOrdersRouteImport.update({
+  id: '/admin/orders',
+  path: '/admin/orders',
+  getParentRoute: () => VendorRoute,
+} as any)
 const VendorAdminApprovalsRoute = VendorAdminApprovalsRouteImport.update({
   id: '/admin/approvals',
   path: '/admin/approvals',
@@ -240,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/vendor/': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
+  '/vendor/admin/orders': typeof VendorAdminOrdersRoute
   '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
   '/vendor/products/pending': typeof VendorProductsPendingRoute
@@ -273,6 +280,7 @@ export interface FileRoutesByTo {
   '/vendor': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
+  '/vendor/admin/orders': typeof VendorAdminOrdersRoute
   '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
   '/vendor/products/pending': typeof VendorProductsPendingRoute
@@ -309,6 +317,7 @@ export interface FileRoutesById {
   '/vendor/': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
+  '/vendor/admin/orders': typeof VendorAdminOrdersRoute
   '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
   '/vendor/products/pending': typeof VendorProductsPendingRoute
@@ -346,6 +355,7 @@ export interface FileRouteTypes {
     | '/vendor/'
     | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
+    | '/vendor/admin/orders'
     | '/vendor/admin/products'
     | '/vendor/products/new'
     | '/vendor/products/pending'
@@ -379,6 +389,7 @@ export interface FileRouteTypes {
     | '/vendor'
     | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
+    | '/vendor/admin/orders'
     | '/vendor/admin/products'
     | '/vendor/products/new'
     | '/vendor/products/pending'
@@ -414,6 +425,7 @@ export interface FileRouteTypes {
     | '/vendor/'
     | '/api/public/paystack-webhook'
     | '/vendor/admin/approvals'
+    | '/vendor/admin/orders'
     | '/vendor/admin/products'
     | '/vendor/products/new'
     | '/vendor/products/pending'
@@ -650,6 +662,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorAdminProductsRouteImport
       parentRoute: typeof VendorRoute
     }
+    '/vendor/admin/orders': {
+      id: '/vendor/admin/orders'
+      path: '/admin/orders'
+      fullPath: '/vendor/admin/orders'
+      preLoaderRoute: typeof VendorAdminOrdersRouteImport
+      parentRoute: typeof VendorRoute
+    }
     '/vendor/admin/approvals': {
       id: '/vendor/admin/approvals'
       path: '/admin/approvals'
@@ -714,6 +733,7 @@ interface VendorRouteChildren {
   VendorStoreRoute: typeof VendorStoreRoute
   VendorIndexRoute: typeof VendorIndexRoute
   VendorAdminApprovalsRoute: typeof VendorAdminApprovalsRoute
+  VendorAdminOrdersRoute: typeof VendorAdminOrdersRoute
   VendorAdminProductsRoute: typeof VendorAdminProductsRoute
   VendorProductsNewRoute: typeof VendorProductsNewRoute
   VendorProductsPendingRoute: typeof VendorProductsPendingRoute
@@ -735,6 +755,7 @@ const VendorRouteChildren: VendorRouteChildren = {
   VendorStoreRoute: VendorStoreRoute,
   VendorIndexRoute: VendorIndexRoute,
   VendorAdminApprovalsRoute: VendorAdminApprovalsRoute,
+  VendorAdminOrdersRoute: VendorAdminOrdersRoute,
   VendorAdminProductsRoute: VendorAdminProductsRoute,
   VendorProductsNewRoute: VendorProductsNewRoute,
   VendorProductsPendingRoute: VendorProductsPendingRoute,

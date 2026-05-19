@@ -72,6 +72,7 @@ export const Route = createFileRoute("/vendor/settings")({
 const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; description: string }> = {
   monitoring: { label: "Monitoring & Error Tracking", icon: <Shield className="h-5 w-5" />, description: "Configure error tracking and monitoring services" },
   payments: { label: "Payment Gateways", icon: <CreditCard className="h-5 w-5" />, description: "API keys for payment processing providers" },
+  storage: { label: "Storage & Media (Cloudinary)", icon: <Settings className="h-5 w-5" />, description: "Cloudinary credentials for signed product image uploads" },
   analytics: { label: "Analytics", icon: <BarChart3 className="h-5 w-5" />, description: "Analytics and tracking service configuration" },
   email: { label: "Email & Notifications", icon: <Mail className="h-5 w-5" />, description: "SMTP and email delivery settings" },
   general: { label: "General", icon: <Settings className="h-5 w-5" />, description: "Other platform configuration" },

@@ -148,6 +148,12 @@ function AdminPaystackDiagnostics() {
               state={tests.rate_limit}
               onRun={() => run("rate_limit")}
             />
+            <TestRow
+              label="Webhook replay idempotency"
+              hint="Signs a synthetic event with the live secret, delivers it twice, and verifies no duplicate rows, payments, or emails are produced"
+              state={tests.webhook_replay}
+              onRun={() => run("webhook_replay")}
+            />
           </CardContent>
         </Card>
 

@@ -147,26 +147,57 @@ export async function sendPayoutPaidEmail(args: {
   });
 }
 
+export type RefundEmailStatus = "approved" | "rejected" | "cancelled" | "completed";
+
+const REFUND_COPY: Record<
+  RefundEmailStatus,
+  { subject: string; title: string; body: string }
+> = {
+  approved: {
+    subject: "Refund approved",
+    title: "Your refund has been approved",
+    body: "We've approved your refund. The amount will be returned to your original payment method within 5–10 business days.",
+  },
+  rejected: {
+    subject: "Refund declined",
+    title: "Your refund request was declined",
+    body: "If you'd like to discuss this decision, reply to this email and our team will follow up.",
+  },
+  cancelled: {
+    subject: "Refund request cancelled",
+    title: "Your refund request was cancelled",
+    body: "No further action is needed. You can open a new refund request from your order page if needed.",
+  },
+  completed: {
+    subject: "Refund completed",
+    title: "Your refund has been sent to your bank",
+    body: "Paystack has confirmed the refund. Depending on your bank, funds should appear within a few business days.",
+  },
+};
+
 export async function sendRefundDecisionEmail(args: {
   to: string;
-  approved: boolean;
+  /** Either pass `status` directly, or legacy `approved` (true → approved). */
+  status?: RefundEmailStatus;
+  approved?: boolean;
   productTitle: string;
   amountKobo: number;
   note?: string | null;
+  reference?: string | null;
 }) {
+  const status: RefundEmailStatus =
+    args.status ?? (args.approved ? "approved" : "rejected");
+  const copy = REFUND_COPY[status];
   return sendEmail({
     to: args.to,
-    subject: args.approved ? `Refund approved` : `Refund declined`,
+    subject: copy.subject,
     html: shell(
-      args.approved ? `Your refund has been approved` : `Your refund request was declined`,
+      copy.title,
       `<p><strong>Item:</strong> ${escapeHtml(args.productTitle)}</p>
        <p><strong>Amount:</strong> ${fmtNaira(args.amountKobo)}</p>
        ${args.note ? `<p><strong>Note from support:</strong> ${escapeHtml(args.note)}</p>` : ""}
-       ${
-         args.approved
-           ? `<p>The amount will be returned to your original payment method within 5–10 business days.</p>`
-           : `<p>If you'd like to discuss this decision, reply to this email and our team will follow up.</p>`
-       }`,
+       ${args.reference ? `<p style="color:#666;font-size:13px">Reference: <code>${escapeHtml(args.reference)}</code></p>` : ""}
+       <p>${copy.body}</p>`,
     ),
   });
 }

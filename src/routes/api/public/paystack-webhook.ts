@@ -10,7 +10,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getPlatformValue } from "@/lib/platform-settings.server";
-import { sendOrderReceipt, sendPayoutPaidEmail } from "@/lib/email.server";
+import {
+  sendOrderReceipt,
+  sendPayoutPaidEmail,
+  sendRefundDecisionEmail,
+} from "@/lib/email.server";
 
 const RATE_LIMIT_PER_MIN = 120;
 
@@ -248,6 +252,102 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
                       body?.data?.reason ?? body?.data?.failure_reason ?? "Transfer failed",
                   })
                   .eq("id", payout.id);
+              }
+              await supabaseAdmin
+                .from("payment_webhook_events")
+                .update({ processed_at: new Date().toISOString() })
+                .eq("event_id", eventId);
+            }
+          }
+        }
+
+        // ----- refund.processed / refund.pending / refund.failed -----
+        // Paystack-side refund lifecycle. The event_id unique index already
+        // blocks duplicate webhook deliveries (returned 200 above); we still
+        // guard the status transition with a conditional UPDATE so that any
+        // out-of-order or replayed delivery cannot re-fire the buyer email
+        // or re-restock the item.
+        if (eventType.startsWith("refund.")) {
+          const refundRef: string | undefined =
+            body?.data?.transaction_reference ??
+            body?.data?.transaction?.reference ??
+            body?.data?.reference;
+          if (refundRef) {
+            const { data: ord } = await supabaseAdmin
+              .from("orders")
+              .select("id")
+              .eq("paystack_reference", refundRef)
+              .maybeSingle();
+            if (ord?.id) {
+              const { data: items } = await supabaseAdmin
+                .from("order_items")
+                .select("id")
+                .eq("order_id", ord.id);
+              const itemIds = (items ?? []).map((i) => i.id);
+              if (itemIds.length) {
+                if (eventType === "refund.processed") {
+                  // Flip any matching refund_requests to 'refunded' atomically
+                  // ONLY if they aren't already in a terminal state.
+                  const { data: flipped } = await supabaseAdmin
+                    .from("refund_requests")
+                    .update({
+                      status: "refunded",
+                      processed_at: new Date().toISOString(),
+                    })
+                    .in("order_item_id", itemIds)
+                    .in("status", ["requested", "approved"])
+                    .select("id, order_item_id, admin_note");
+                  for (const rf of flipped ?? []) {
+                    // Best-effort completion email — only fires the first
+                    // time the row transitions because subsequent deliveries
+                    // see status='refunded' and the UPDATE filter excludes them.
+                    try {
+                      const { data: item } = await supabaseAdmin
+                        .from("order_items")
+                        .select(
+                          "product_title, unit_price_kobo, quantity, order:orders!inner(customer_id)",
+                        )
+                        .eq("id", rf.order_item_id)
+                        .maybeSingle();
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const buyerId = (item?.order as any)?.customer_id as
+                        | string
+                        | undefined;
+                      if (item && buyerId) {
+                        const { data: prof } = await supabaseAdmin
+                          .from("profiles")
+                          .select("email")
+                          .eq("id", buyerId)
+                          .maybeSingle();
+                        if (prof?.email) {
+                          await sendRefundDecisionEmail({
+                            to: prof.email,
+                            status: "completed",
+                            productTitle: item.product_title,
+                            amountKobo:
+                              Number(item.unit_price_kobo) *
+                              Number(item.quantity),
+                            note: rf.admin_note,
+                            reference: refundRef,
+                          });
+                        }
+                      }
+                    } catch (e) {
+                      console.error("[paystack-webhook] refund email failed", e);
+                    }
+                  }
+                } else if (eventType === "refund.failed") {
+                  await supabaseAdmin
+                    .from("refund_requests")
+                    .update({
+                      admin_note:
+                        body?.data?.reason ??
+                        body?.data?.failure_reason ??
+                        "Paystack refund failed",
+                    })
+                    .in("order_item_id", itemIds)
+                    .in("status", ["approved", "requested"]);
+                }
               }
               await supabaseAdmin
                 .from("payment_webhook_events")

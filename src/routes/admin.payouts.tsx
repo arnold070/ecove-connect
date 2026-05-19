@@ -18,7 +18,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { PayoutStatusTimeline, type PayoutStatus } from "@/components/payout-timeline";
+import {
+  PayoutStatusTimeline,
+  RefundStatusTimeline,
+  type PayoutStatus,
+  type RefundStatus,
+} from "@/components/payout-timeline";
 import { toast } from "sonner";
 
 
@@ -180,8 +185,15 @@ function RefundsTab() {
                 Order {it?.order?.order_number} · {formatKobo(it?.vendor_payout_kobo ?? 0)}
               </p>
             </CardHeader>
-            <CardContent className="text-sm space-y-2">
+            <CardContent className="text-sm space-y-3">
               <p className="italic">"{r.reason}"</p>
+              <RefundStatusTimeline
+                status={r.status as RefundStatus}
+                createdAt={r.created_at}
+                updatedAt={(r as { updated_at?: string | null }).updated_at}
+                processedAt={(r as { processed_at?: string | null }).processed_at}
+                adminNote={r.admin_note}
+              />
               {r.status === "requested" && (
                 <>
                   <Textarea
@@ -214,9 +226,6 @@ function RefundsTab() {
                     </Button>
                   </div>
                 </>
-              )}
-              {r.admin_note && (
-                <p className="text-xs text-muted-foreground">Note: {r.admin_note}</p>
               )}
             </CardContent>
           </Card>

@@ -19,7 +19,7 @@ export const Route = createFileRoute("/admin/paystack")({
   component: AdminPaystackDiagnostics,
 });
 
-type TestKey = "paystack" | "paystack_webhook" | "rate_limit";
+type TestKey = "paystack" | "paystack_webhook" | "rate_limit" | "webhook_replay";
 type TestState = {
   running: boolean;
   ok?: boolean;
@@ -40,6 +40,7 @@ function AdminPaystackDiagnostics() {
     paystack: { running: false },
     paystack_webhook: { running: false },
     rate_limit: { running: false },
+    webhook_replay: { running: false },
   });
 
   const webhookUrl =
@@ -70,6 +71,7 @@ function AdminPaystackDiagnostics() {
     await run("paystack");
     await run("paystack_webhook");
     await run("rate_limit");
+    await run("webhook_replay");
   }
 
   return (
@@ -145,6 +147,12 @@ function AdminPaystackDiagnostics() {
               hint="Fires 25 bogus signatures at the live endpoint to confirm 429s"
               state={tests.rate_limit}
               onRun={() => run("rate_limit")}
+            />
+            <TestRow
+              label="Webhook replay idempotency"
+              hint="Signs a synthetic event with the live secret, delivers it twice, and verifies no duplicate rows, payments, or emails are produced"
+              state={tests.webhook_replay}
+              onRun={() => run("webhook_replay")}
             />
           </CardContent>
         </Card>

@@ -44,10 +44,9 @@ export const getMyOrder = createServerFn({ method: "GET" })
     if (itemIds.length) {
       const { data: rfs } = await supabase
         .from("refund_requests")
-        .select("id, order_item_id, status, reason, created_at, processed_at, admin_note")
+        .select("id, order_item_id, status, reason, created_at, updated_at, processed_at, admin_note")
         .in("order_item_id", itemIds);
-      refunds = (rfs ?? []).map((r) => ({ ...r, updated_at: r.processed_at }));
-
+      refunds = (rfs ?? []) as typeof refunds;
     }
 
     return { order, refunds };
@@ -126,7 +125,7 @@ export const listRefundsAdmin = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("refund_requests")
       .select(
-        `id, reason, status, admin_note, created_at, buyer_id,
+        `id, reason, status, admin_note, created_at, updated_at, processed_at, buyer_id,
          item:order_items!inner(
            id, product_title, quantity, unit_price_kobo, vendor_payout_kobo,
            order:orders!inner(id, order_number)
@@ -144,6 +143,48 @@ const decideRefundSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+async function loadRefundContext(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  refundId: string,
+): Promise<{
+  buyerEmail?: string;
+  productTitle?: string;
+  amountKobo: number;
+  reference?: string | null;
+}> {
+  const { data: rf } = await supabase
+    .from("refund_requests")
+    .select("order_item_id")
+    .eq("id", refundId)
+    .maybeSingle();
+  if (!rf) return { amountKobo: 0 };
+  const { data: item } = await supabase
+    .from("order_items")
+    .select(
+      "product_title, unit_price_kobo, quantity, order:orders!inner(customer_id, paystack_reference)",
+    )
+    .eq("id", rf.order_item_id)
+    .maybeSingle();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ord = item?.order as any;
+  let buyerEmail: string | undefined;
+  if (ord?.customer_id) {
+    const { data: prof } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", ord.customer_id)
+      .maybeSingle();
+    buyerEmail = prof?.email ?? undefined;
+  }
+  return {
+    buyerEmail,
+    productTitle: item?.product_title,
+    amountKobo: item ? Number(item.unit_price_kobo) * Number(item.quantity) : 0,
+    reference: ord?.paystack_reference ?? null,
+  };
+}
+
 export const decideRefundAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => decideRefundSchema.parse(d))
@@ -160,26 +201,7 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
     if (!rf) throw new Error("Refund request not found");
     if (rf.status !== "requested") throw new Error("Already decided");
 
-    // Fetch context for buyer email
-    const { data: item } = await supabase
-      .from("order_items")
-      .select(
-        "product_title, vendor_payout_kobo, unit_price_kobo, quantity, order:orders!inner(customer_id)",
-      )
-      .eq("id", rf.order_item_id)
-      .maybeSingle();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const buyerId = (item?.order as any)?.customer_id as string | undefined;
-    let buyerEmail: string | undefined;
-    if (buyerId) {
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("id", buyerId)
-        .maybeSingle();
-      buyerEmail = prof?.email ?? undefined;
-    }
-    const refundAmount = item ? Number(item.unit_price_kobo) * Number(item.quantity) : 0;
+    const ctx = await loadRefundContext(supabase, data.id);
 
     if (!data.approve) {
       await supabase
@@ -191,19 +213,19 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
           processed_at: new Date().toISOString(),
         })
         .eq("id", data.id);
-      if (buyerEmail && item) {
+      if (ctx.buyerEmail && ctx.productTitle) {
         await sendRefundDecisionEmail({
-          to: buyerEmail,
-          approved: false,
-          productTitle: item.product_title,
-          amountKobo: refundAmount,
+          to: ctx.buyerEmail,
+          status: "rejected",
+          productTitle: ctx.productTitle,
+          amountKobo: ctx.amountKobo,
           note: data.note,
         }).catch(() => undefined);
       }
       return { success: true, status: "rejected" };
     }
 
-    // Approve -> call RPC to atomically restock + reverse ledger
+    // Approve -> RPC restocks + reverses ledger atomically
     const { error: rpcErr } = await supabase.rpc("refund_order_item", {
       _order_item_id: rf.order_item_id,
       _note: data.note ?? null,
@@ -220,14 +242,43 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
 
-    if (buyerEmail && item) {
+    if (ctx.buyerEmail && ctx.productTitle) {
       await sendRefundDecisionEmail({
-        to: buyerEmail,
-        approved: true,
-        productTitle: item.product_title,
-        amountKobo: refundAmount,
+        to: ctx.buyerEmail,
+        status: "approved",
+        productTitle: ctx.productTitle,
+        amountKobo: ctx.amountKobo,
         note: data.note,
       }).catch(() => undefined);
     }
     return { success: true, status: "refunded" };
+  });
+
+// Buyer-initiated cancellation of their own pending refund request.
+export const cancelMyRefund = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: rf, error } = await supabase
+      .from("refund_requests")
+      .update({ status: "cancelled", processed_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .eq("buyer_id", userId)
+      .eq("status", "requested")
+      .select("id, order_item_id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!rf) throw new Error("Refund not found or already decided");
+
+    const ctx = await loadRefundContext(supabase, data.id);
+    if (ctx.buyerEmail && ctx.productTitle) {
+      await sendRefundDecisionEmail({
+        to: ctx.buyerEmail,
+        status: "cancelled",
+        productTitle: ctx.productTitle,
+        amountKobo: ctx.amountKobo,
+      }).catch(() => undefined);
+    }
+    return { success: true };
   });

@@ -88,3 +88,14 @@ Four delicate feature areas, built in one sequence so each phase unlocks the nex
 ## Execution order
 
 I will build **Phase 1 in this turn** (vendor onboarding + KYC end-to-end), then ask you to confirm before Phase 2, since each phase is itself substantial and you'll want to verify the UX before moving on.
+
+---
+
+## Status — Phase 3 in progress
+
+- `db/0008_paystack_orders.sql` adds `payment_webhook_events` table, paid_at/access_code/auth_url columns, admin update RLS on order_items, and seeds `PAYSTACK_WEBHOOK_SECRET`, `PAYSTACK_CALLBACK_URL`, `PLATFORM_COMMISSION_BPS` into platform_settings.
+- `src/lib/cart.functions.ts` — getMyCart / addToCart / updateCartItem / clearCart.
+- `src/lib/checkout.functions.ts` — initializeCheckout (Paystack), verifyCheckout, listMyOrders, listOrdersAdmin, updateOrderStatusAdmin.
+- `src/routes/api/public/paystack-webhook.ts` — HMAC-SHA512 verify + idempotent event log + marks order paid on `charge.success`.
+- UI: `/cart`, `/checkout`, `/checkout/success`, `/vendor/admin/orders`.
+- Cloudinary admin: storage category surfaces in `/vendor/settings` with a **Test Cloudinary** button (admin-only).

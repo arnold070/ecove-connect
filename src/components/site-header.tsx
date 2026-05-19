@@ -82,11 +82,10 @@ export function SiteHeader() {
           </div>
 
           <nav className="ml-auto flex items-center gap-1">
-            <HeaderIcon
-              icon={<ShoppingBag className="h-5 w-5" />}
-              label="Cart"
-              badge={3}
-            />
+            <Link to="/cart" className="flex flex-col items-center gap-0.5 rounded-md px-3 py-1.5 text-xs text-muted-foreground transition hover:bg-muted hover:text-foreground">
+              <ShoppingBag className="h-5 w-5" />
+              <span className="hidden sm:inline">Cart</span>
+            </Link>
             {user ? (
               <button
                 type="button"

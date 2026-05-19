@@ -57,6 +57,12 @@ const NAV_SECTIONS: { title: string; items: VendorNavLink[] }[] = [
         icon: <ShieldCheck className="h-4 w-4" />,
         requireRole: "admin",
       },
+      {
+        to: "/vendor/admin/orders",
+        label: "Orders & payments",
+        icon: <Truck className="h-4 w-4" />,
+        requireRole: "admin",
+      },
     ],
   },
   {

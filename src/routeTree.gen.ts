@@ -14,8 +14,10 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorIndexRouteImport } from './routes/vendor.index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as VendorStoreRouteImport } from './routes/vendor.store'
 import { Route as VendorReviewsRouteImport } from './routes/vendor.reviews'
 import { Route as VendorReturnsRouteImport } from './routes/vendor.returns'
@@ -62,6 +64,11 @@ const CartRoute = CartRouteImport.update({
   path: '/cart',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -71,6 +78,11 @@ const VendorIndexRoute = VendorIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => VendorRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const VendorStoreRoute = VendorStoreRouteImport.update({
   id: '/store',
@@ -128,29 +140,29 @@ const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
   getParentRoute: () => CheckoutRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/admin/settings',
-  path: '/admin/settings',
-  getParentRoute: () => rootRouteImport,
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminProductsRoute = AdminProductsRouteImport.update({
-  id: '/admin/products',
-  path: '/admin/products',
-  getParentRoute: () => rootRouteImport,
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminOrdersRoute = AdminOrdersRouteImport.update({
-  id: '/admin/orders',
-  path: '/admin/orders',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminDiagnosticsRoute = AdminDiagnosticsRouteImport.update({
-  id: '/admin/diagnostics',
-  path: '/admin/diagnostics',
-  getParentRoute: () => rootRouteImport,
+  id: '/diagnostics',
+  path: '/diagnostics',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminApprovalsRoute = AdminApprovalsRouteImport.update({
-  id: '/admin/approvals',
-  path: '/admin/approvals',
-  getParentRoute: () => rootRouteImport,
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => AdminRoute,
 } as any)
 const VendorProductsIndexRoute = VendorProductsIndexRouteImport.update({
   id: '/products/',
@@ -176,6 +188,7 @@ const ApiPublicPaystackWebhookRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
@@ -197,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
   '/vendor/store': typeof VendorStoreRoute
+  '/admin/': typeof AdminIndexRoute
   '/vendor/': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -225,6 +239,7 @@ export interface FileRoutesByTo {
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
   '/vendor/store': typeof VendorStoreRoute
+  '/admin': typeof AdminIndexRoute
   '/vendor': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -234,6 +249,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
@@ -255,6 +271,7 @@ export interface FileRoutesById {
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
   '/vendor/store': typeof VendorStoreRoute
+  '/admin/': typeof AdminIndexRoute
   '/vendor/': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
@@ -265,6 +282,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/cart'
     | '/checkout'
     | '/login'
@@ -286,6 +304,7 @@ export interface FileRouteTypes {
     | '/vendor/returns'
     | '/vendor/reviews'
     | '/vendor/store'
+    | '/admin/'
     | '/vendor/'
     | '/api/public/paystack-webhook'
     | '/vendor/products/new'
@@ -314,6 +333,7 @@ export interface FileRouteTypes {
     | '/vendor/returns'
     | '/vendor/reviews'
     | '/vendor/store'
+    | '/admin'
     | '/vendor'
     | '/api/public/paystack-webhook'
     | '/vendor/products/new'
@@ -322,6 +342,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/cart'
     | '/checkout'
     | '/login'
@@ -343,6 +364,7 @@ export interface FileRouteTypes {
     | '/vendor/returns'
     | '/vendor/reviews'
     | '/vendor/store'
+    | '/admin/'
     | '/vendor/'
     | '/api/public/paystack-webhook'
     | '/vendor/products/new'
@@ -352,16 +374,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
   VendorRoute: typeof VendorRouteWithChildren
-  AdminApprovalsRoute: typeof AdminApprovalsRoute
-  AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
-  AdminOrdersRoute: typeof AdminOrdersRoute
-  AdminProductsRoute: typeof AdminProductsRoute
-  AdminSettingsRoute: typeof AdminSettingsRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
 }
 
@@ -402,6 +420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -415,6 +440,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/vendor/'
       preLoaderRoute: typeof VendorIndexRouteImport
       parentRoute: typeof VendorRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/vendor/store': {
       id: '/vendor/store'
@@ -495,38 +527,38 @@ declare module '@tanstack/react-router' {
     }
     '/admin/settings': {
       id: '/admin/settings'
-      path: '/admin/settings'
+      path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/products': {
       id: '/admin/products'
-      path: '/admin/products'
+      path: '/products'
       fullPath: '/admin/products'
       preLoaderRoute: typeof AdminProductsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/orders': {
       id: '/admin/orders'
-      path: '/admin/orders'
+      path: '/orders'
       fullPath: '/admin/orders'
       preLoaderRoute: typeof AdminOrdersRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/diagnostics': {
       id: '/admin/diagnostics'
-      path: '/admin/diagnostics'
+      path: '/diagnostics'
       fullPath: '/admin/diagnostics'
       preLoaderRoute: typeof AdminDiagnosticsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/approvals': {
       id: '/admin/approvals'
-      path: '/admin/approvals'
+      path: '/approvals'
       fullPath: '/admin/approvals'
       preLoaderRoute: typeof AdminApprovalsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/vendor/products/': {
       id: '/vendor/products/'
@@ -558,6 +590,26 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AdminRouteChildren {
+  AdminApprovalsRoute: typeof AdminApprovalsRoute
+  AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
+  AdminOrdersRoute: typeof AdminOrdersRoute
+  AdminProductsRoute: typeof AdminProductsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminApprovalsRoute: AdminApprovalsRoute,
+  AdminDiagnosticsRoute: AdminDiagnosticsRoute,
+  AdminOrdersRoute: AdminOrdersRoute,
+  AdminProductsRoute: AdminProductsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface CheckoutRouteChildren {
   CheckoutSuccessRoute: typeof CheckoutSuccessRoute
@@ -610,18 +662,23 @@ const VendorRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRouteWithChildren,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
   VendorRoute: VendorRouteWithChildren,
-  AdminApprovalsRoute: AdminApprovalsRoute,
-  AdminDiagnosticsRoute: AdminDiagnosticsRoute,
-  AdminOrdersRoute: AdminOrdersRoute,
-  AdminProductsRoute: AdminProductsRoute,
-  AdminSettingsRoute: AdminSettingsRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

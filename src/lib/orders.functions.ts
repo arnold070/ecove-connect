@@ -44,10 +44,9 @@ export const getMyOrder = createServerFn({ method: "GET" })
     if (itemIds.length) {
       const { data: rfs } = await supabase
         .from("refund_requests")
-        .select("id, order_item_id, status, reason, created_at, processed_at, admin_note")
+        .select("id, order_item_id, status, reason, created_at, updated_at, processed_at, admin_note")
         .in("order_item_id", itemIds);
-      refunds = (rfs ?? []).map((r) => ({ ...r, updated_at: r.processed_at }));
-
+      refunds = (rfs ?? []) as typeof refunds;
     }
 
     return { order, refunds };

@@ -346,6 +346,7 @@ export const approvePayoutAdmin = createServerFn({ method: "POST" })
           payout_id: payout.id,
           note: `Payout ${transferRef}`,
         });
+        await emailVendorPayoutPaid(supabase, payout.vendor_id, payout.amount_kobo, transferRef);
       }
       return { success: true, status: newStatus, transfer_ref: transferRef };
     }
@@ -367,6 +368,7 @@ export const approvePayoutAdmin = createServerFn({ method: "POST" })
       payout_id: payout.id,
       note: `Manual payout`,
     });
+    await emailVendorPayoutPaid(supabase, payout.vendor_id, payout.amount_kobo, null);
     return { success: true, status: "paid", transfer_ref: null };
   });
 

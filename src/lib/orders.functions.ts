@@ -299,14 +299,6 @@ export const cancelMyRefund = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!rf) throw new Error("Refund not found or already decided");
 
-    const ctx = await loadRefundContext(supabase, data.id);
-    if (ctx.buyerEmail && ctx.productTitle) {
-      await sendRefundDecisionEmail({
-        to: ctx.buyerEmail,
-        status: "cancelled",
-        productTitle: ctx.productTitle,
-        amountKobo: ctx.amountKobo,
-      }).catch(() => undefined);
-    }
+    await notifyRefundParties(supabase, data.id, "cancelled");
     return { success: true };
   });

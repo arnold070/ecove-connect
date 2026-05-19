@@ -10,7 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendorRouteImport } from './routes/vendor'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
@@ -33,6 +37,7 @@ import { Route as VendorDiagnosticsRouteImport } from './routes/vendor.diagnosti
 import { Route as ProductsSlugRouteImport } from './routes/products.$slug'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminReadinessRouteImport } from './routes/admin.readiness'
 import { Route as AdminProductsRouteImport } from './routes/admin.products'
 import { Route as AdminPaystackRouteImport } from './routes/admin.paystack'
 import { Route as AdminPayoutsRouteImport } from './routes/admin.payouts'
@@ -54,9 +59,29 @@ const VendorRoute = VendorRouteImport.update({
   path: '/vendor',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundPolicyRoute = RefundPolicyRouteImport.update({
+  id: '/refund-policy',
+  path: '/refund-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -169,6 +194,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminReadinessRoute = AdminReadinessRouteImport.update({
+  id: '/readiness',
+  path: '/readiness',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminProductsRoute = AdminProductsRouteImport.update({
   id: '/products',
   path: '/products',
@@ -252,7 +282,11 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/vendor': typeof VendorRouteWithChildren
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/admin/approvals': typeof AdminApprovalsRoute
@@ -261,6 +295,7 @@ export interface FileRoutesByFullPath {
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/paystack': typeof AdminPaystackRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/readiness': typeof AdminReadinessRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/products/$slug': typeof ProductsSlugRoute
@@ -292,7 +327,11 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/admin/approvals': typeof AdminApprovalsRoute
   '/admin/diagnostics': typeof AdminDiagnosticsRoute
@@ -300,6 +339,7 @@ export interface FileRoutesByTo {
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/paystack': typeof AdminPaystackRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/readiness': typeof AdminReadinessRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/products/$slug': typeof ProductsSlugRoute
@@ -333,7 +373,11 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/signup': typeof SignupRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/vendor': typeof VendorRouteWithChildren
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/admin/approvals': typeof AdminApprovalsRoute
@@ -342,6 +386,7 @@ export interface FileRoutesById {
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/paystack': typeof AdminPaystackRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/readiness': typeof AdminReadinessRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/products/$slug': typeof ProductsSlugRoute
@@ -376,7 +421,11 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/login'
+    | '/privacy'
+    | '/refund-policy'
     | '/signup'
+    | '/sitemap.xml'
+    | '/terms'
     | '/vendor'
     | '/account/orders'
     | '/admin/approvals'
@@ -385,6 +434,7 @@ export interface FileRouteTypes {
     | '/admin/payouts'
     | '/admin/paystack'
     | '/admin/products'
+    | '/admin/readiness'
     | '/admin/settings'
     | '/checkout/success'
     | '/products/$slug'
@@ -416,7 +466,11 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/login'
+    | '/privacy'
+    | '/refund-policy'
     | '/signup'
+    | '/sitemap.xml'
+    | '/terms'
     | '/account/orders'
     | '/admin/approvals'
     | '/admin/diagnostics'
@@ -424,6 +478,7 @@ export interface FileRouteTypes {
     | '/admin/payouts'
     | '/admin/paystack'
     | '/admin/products'
+    | '/admin/readiness'
     | '/admin/settings'
     | '/checkout/success'
     | '/products/$slug'
@@ -456,7 +511,11 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/login'
+    | '/privacy'
+    | '/refund-policy'
     | '/signup'
+    | '/sitemap.xml'
+    | '/terms'
     | '/vendor'
     | '/account/orders'
     | '/admin/approvals'
@@ -465,6 +524,7 @@ export interface FileRouteTypes {
     | '/admin/payouts'
     | '/admin/paystack'
     | '/admin/products'
+    | '/admin/readiness'
     | '/admin/settings'
     | '/checkout/success'
     | '/products/$slug'
@@ -498,7 +558,11 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRouteWithChildren
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  RefundPolicyRoute: typeof RefundPolicyRoute
   SignupRoute: typeof SignupRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   VendorRoute: typeof VendorRouteWithChildren
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   ProductsSlugRoute: typeof ProductsSlugRoute
@@ -514,11 +578,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund-policy': {
+      id: '/refund-policy'
+      path: '/refund-policy'
+      fullPath: '/refund-policy'
+      preLoaderRoute: typeof RefundPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -675,6 +767,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/readiness': {
+      id: '/admin/readiness'
+      path: '/readiness'
+      fullPath: '/admin/readiness'
+      preLoaderRoute: typeof AdminReadinessRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/products': {
       id: '/admin/products'
       path: '/products'
@@ -790,6 +889,7 @@ interface AdminRouteChildren {
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   AdminPaystackRoute: typeof AdminPaystackRoute
   AdminProductsRoute: typeof AdminProductsRoute
+  AdminReadinessRoute: typeof AdminReadinessRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -801,6 +901,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPayoutsRoute: AdminPayoutsRoute,
   AdminPaystackRoute: AdminPaystackRoute,
   AdminProductsRoute: AdminProductsRoute,
+  AdminReadinessRoute: AdminReadinessRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
@@ -884,7 +985,11 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRouteWithChildren,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
+  RefundPolicyRoute: RefundPolicyRoute,
   SignupRoute: SignupRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   VendorRoute: VendorRouteWithChildren,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   ProductsSlugRoute: ProductsSlugRoute,
@@ -893,12 +998,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

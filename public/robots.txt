@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /vendor
+Disallow: /account
+Disallow: /checkout
+Disallow: /cart
+Disallow: /api/
+
+Sitemap: https://ecove-connect.lovable.app/sitemap.xml

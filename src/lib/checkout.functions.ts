@@ -30,6 +30,18 @@ export const initializeCheckout = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
 
+    // Per-user rate limit: at most 20 checkout-init calls per minute.
+    // Uses the same db-backed sliding window as the webhook handler.
+    const { data: hit } = await supabase.rpc("bump_rate_limit", {
+      _key: `checkout-init:${userId}`,
+      _window_seconds: 60,
+    });
+    if (typeof hit === "number" && hit > 20) {
+      throw new Error("Too many checkout attempts — please wait a minute and try again.");
+    }
+
+
+
     // 1. Load cart items
     const { data: cart } = await supabase
       .from("carts")

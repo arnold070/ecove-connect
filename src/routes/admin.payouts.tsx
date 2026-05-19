@@ -18,7 +18,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { PayoutStatusTimeline, type PayoutStatus } from "@/components/payout-timeline";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/admin/payouts")({
   component: AdminPayoutsPage,

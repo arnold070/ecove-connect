@@ -14,10 +14,11 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorIndexRouteImport } from './routes/vendor.index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as VendorStoreRouteImport } from './routes/vendor.store'
-import { Route as VendorSettingsRouteImport } from './routes/vendor.settings'
 import { Route as VendorReviewsRouteImport } from './routes/vendor.reviews'
 import { Route as VendorReturnsRouteImport } from './routes/vendor.returns'
 import { Route as VendorReportsRouteImport } from './routes/vendor.reports'
@@ -27,14 +28,15 @@ import { Route as VendorOrdersRouteImport } from './routes/vendor.orders'
 import { Route as VendorOnboardingRouteImport } from './routes/vendor.onboarding'
 import { Route as VendorInventoryRouteImport } from './routes/vendor.inventory'
 import { Route as VendorEarningsRouteImport } from './routes/vendor.earnings'
-import { Route as VendorDiagnosticsRouteImport } from './routes/vendor.diagnostics'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminProductsRouteImport } from './routes/admin.products'
+import { Route as AdminOrdersRouteImport } from './routes/admin.orders'
+import { Route as AdminDiagnosticsRouteImport } from './routes/admin.diagnostics'
+import { Route as AdminApprovalsRouteImport } from './routes/admin.approvals'
 import { Route as VendorProductsIndexRouteImport } from './routes/vendor.products.index'
 import { Route as VendorProductsPendingRouteImport } from './routes/vendor.products.pending'
 import { Route as VendorProductsNewRouteImport } from './routes/vendor.products.new'
-import { Route as VendorAdminProductsRouteImport } from './routes/vendor.admin.products'
-import { Route as VendorAdminOrdersRouteImport } from './routes/vendor.admin.orders'
-import { Route as VendorAdminApprovalsRouteImport } from './routes/vendor.admin.approvals'
 import { Route as ApiPublicPaystackWebhookRouteImport } from './routes/api/public/paystack-webhook'
 
 const VendorRoute = VendorRouteImport.update({
@@ -62,6 +64,11 @@ const CartRoute = CartRouteImport.update({
   path: '/cart',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -72,14 +79,14 @@ const VendorIndexRoute = VendorIndexRouteImport.update({
   path: '/',
   getParentRoute: () => VendorRoute,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const VendorStoreRoute = VendorStoreRouteImport.update({
   id: '/store',
   path: '/store',
-  getParentRoute: () => VendorRoute,
-} as any)
-const VendorSettingsRoute = VendorSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
   getParentRoute: () => VendorRoute,
 } as any)
 const VendorReviewsRoute = VendorReviewsRouteImport.update({
@@ -127,15 +134,35 @@ const VendorEarningsRoute = VendorEarningsRouteImport.update({
   path: '/earnings',
   getParentRoute: () => VendorRoute,
 } as any)
-const VendorDiagnosticsRoute = VendorDiagnosticsRouteImport.update({
-  id: '/diagnostics',
-  path: '/diagnostics',
-  getParentRoute: () => VendorRoute,
-} as any)
 const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
   id: '/success',
   path: '/success',
   getParentRoute: () => CheckoutRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProductsRoute = AdminProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrdersRoute = AdminOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDiagnosticsRoute = AdminDiagnosticsRouteImport.update({
+  id: '/diagnostics',
+  path: '/diagnostics',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminApprovalsRoute = AdminApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => AdminRoute,
 } as any)
 const VendorProductsIndexRoute = VendorProductsIndexRouteImport.update({
   id: '/products/',
@@ -152,21 +179,6 @@ const VendorProductsNewRoute = VendorProductsNewRouteImport.update({
   path: '/products/new',
   getParentRoute: () => VendorRoute,
 } as any)
-const VendorAdminProductsRoute = VendorAdminProductsRouteImport.update({
-  id: '/admin/products',
-  path: '/admin/products',
-  getParentRoute: () => VendorRoute,
-} as any)
-const VendorAdminOrdersRoute = VendorAdminOrdersRouteImport.update({
-  id: '/admin/orders',
-  path: '/admin/orders',
-  getParentRoute: () => VendorRoute,
-} as any)
-const VendorAdminApprovalsRoute = VendorAdminApprovalsRouteImport.update({
-  id: '/admin/approvals',
-  path: '/admin/approvals',
-  getParentRoute: () => VendorRoute,
-} as any)
 const ApiPublicPaystackWebhookRoute =
   ApiPublicPaystackWebhookRouteImport.update({
     id: '/api/public/paystack-webhook',
@@ -176,13 +188,18 @@ const ApiPublicPaystackWebhookRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/vendor': typeof VendorRouteWithChildren
+  '/admin/approvals': typeof AdminApprovalsRoute
+  '/admin/diagnostics': typeof AdminDiagnosticsRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
-  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/onboarding': typeof VendorOnboardingRoute
@@ -192,13 +209,10 @@ export interface FileRoutesByFullPath {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
-  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
+  '/admin/': typeof AdminIndexRoute
   '/vendor/': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
-  '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
-  '/vendor/admin/orders': typeof VendorAdminOrdersRoute
-  '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
   '/vendor/products/pending': typeof VendorProductsPendingRoute
   '/vendor/products/': typeof VendorProductsIndexRoute
@@ -209,8 +223,12 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
+  '/admin/approvals': typeof AdminApprovalsRoute
+  '/admin/diagnostics': typeof AdminDiagnosticsRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
-  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/onboarding': typeof VendorOnboardingRoute
@@ -220,13 +238,10 @@ export interface FileRoutesByTo {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
-  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
+  '/admin': typeof AdminIndexRoute
   '/vendor': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
-  '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
-  '/vendor/admin/orders': typeof VendorAdminOrdersRoute
-  '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
   '/vendor/products/pending': typeof VendorProductsPendingRoute
   '/vendor/products': typeof VendorProductsIndexRoute
@@ -234,13 +249,18 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRouteWithChildren
   '/login': typeof LoginRoute
   '/signup': typeof SignupRoute
   '/vendor': typeof VendorRouteWithChildren
+  '/admin/approvals': typeof AdminApprovalsRoute
+  '/admin/diagnostics': typeof AdminDiagnosticsRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
-  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/onboarding': typeof VendorOnboardingRoute
@@ -250,13 +270,10 @@ export interface FileRoutesById {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
-  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
+  '/admin/': typeof AdminIndexRoute
   '/vendor/': typeof VendorIndexRoute
   '/api/public/paystack-webhook': typeof ApiPublicPaystackWebhookRoute
-  '/vendor/admin/approvals': typeof VendorAdminApprovalsRoute
-  '/vendor/admin/orders': typeof VendorAdminOrdersRoute
-  '/vendor/admin/products': typeof VendorAdminProductsRoute
   '/vendor/products/new': typeof VendorProductsNewRoute
   '/vendor/products/pending': typeof VendorProductsPendingRoute
   '/vendor/products/': typeof VendorProductsIndexRoute
@@ -265,13 +282,18 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/cart'
     | '/checkout'
     | '/login'
     | '/signup'
     | '/vendor'
+    | '/admin/approvals'
+    | '/admin/diagnostics'
+    | '/admin/orders'
+    | '/admin/products'
+    | '/admin/settings'
     | '/checkout/success'
-    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/onboarding'
@@ -281,13 +303,10 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
-    | '/vendor/settings'
     | '/vendor/store'
+    | '/admin/'
     | '/vendor/'
     | '/api/public/paystack-webhook'
-    | '/vendor/admin/approvals'
-    | '/vendor/admin/orders'
-    | '/vendor/admin/products'
     | '/vendor/products/new'
     | '/vendor/products/pending'
     | '/vendor/products/'
@@ -298,8 +317,12 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/login'
     | '/signup'
+    | '/admin/approvals'
+    | '/admin/diagnostics'
+    | '/admin/orders'
+    | '/admin/products'
+    | '/admin/settings'
     | '/checkout/success'
-    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/onboarding'
@@ -309,26 +332,28 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
-    | '/vendor/settings'
     | '/vendor/store'
+    | '/admin'
     | '/vendor'
     | '/api/public/paystack-webhook'
-    | '/vendor/admin/approvals'
-    | '/vendor/admin/orders'
-    | '/vendor/admin/products'
     | '/vendor/products/new'
     | '/vendor/products/pending'
     | '/vendor/products'
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/cart'
     | '/checkout'
     | '/login'
     | '/signup'
     | '/vendor'
+    | '/admin/approvals'
+    | '/admin/diagnostics'
+    | '/admin/orders'
+    | '/admin/products'
+    | '/admin/settings'
     | '/checkout/success'
-    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/onboarding'
@@ -338,13 +363,10 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
-    | '/vendor/settings'
     | '/vendor/store'
+    | '/admin/'
     | '/vendor/'
     | '/api/public/paystack-webhook'
-    | '/vendor/admin/approvals'
-    | '/vendor/admin/orders'
-    | '/vendor/admin/products'
     | '/vendor/products/new'
     | '/vendor/products/pending'
     | '/vendor/products/'
@@ -352,6 +374,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRouteWithChildren
   LoginRoute: typeof LoginRoute
@@ -397,6 +420,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -411,18 +441,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorIndexRouteImport
       parentRoute: typeof VendorRoute
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/vendor/store': {
       id: '/vendor/store'
       path: '/store'
       fullPath: '/vendor/store'
       preLoaderRoute: typeof VendorStoreRouteImport
-      parentRoute: typeof VendorRoute
-    }
-    '/vendor/settings': {
-      id: '/vendor/settings'
-      path: '/settings'
-      fullPath: '/vendor/settings'
-      preLoaderRoute: typeof VendorSettingsRouteImport
       parentRoute: typeof VendorRoute
     }
     '/vendor/reviews': {
@@ -488,19 +518,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorEarningsRouteImport
       parentRoute: typeof VendorRoute
     }
-    '/vendor/diagnostics': {
-      id: '/vendor/diagnostics'
-      path: '/diagnostics'
-      fullPath: '/vendor/diagnostics'
-      preLoaderRoute: typeof VendorDiagnosticsRouteImport
-      parentRoute: typeof VendorRoute
-    }
     '/checkout/success': {
       id: '/checkout/success'
       path: '/success'
       fullPath: '/checkout/success'
       preLoaderRoute: typeof CheckoutSuccessRouteImport
       parentRoute: typeof CheckoutRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/products': {
+      id: '/admin/products'
+      path: '/products'
+      fullPath: '/admin/products'
+      preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/orders': {
+      id: '/admin/orders'
+      path: '/orders'
+      fullPath: '/admin/orders'
+      preLoaderRoute: typeof AdminOrdersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/diagnostics': {
+      id: '/admin/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/admin/diagnostics'
+      preLoaderRoute: typeof AdminDiagnosticsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/approvals': {
+      id: '/admin/approvals'
+      path: '/approvals'
+      fullPath: '/admin/approvals'
+      preLoaderRoute: typeof AdminApprovalsRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/vendor/products/': {
       id: '/vendor/products/'
@@ -523,27 +581,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorProductsNewRouteImport
       parentRoute: typeof VendorRoute
     }
-    '/vendor/admin/products': {
-      id: '/vendor/admin/products'
-      path: '/admin/products'
-      fullPath: '/vendor/admin/products'
-      preLoaderRoute: typeof VendorAdminProductsRouteImport
-      parentRoute: typeof VendorRoute
-    }
-    '/vendor/admin/orders': {
-      id: '/vendor/admin/orders'
-      path: '/admin/orders'
-      fullPath: '/vendor/admin/orders'
-      preLoaderRoute: typeof VendorAdminOrdersRouteImport
-      parentRoute: typeof VendorRoute
-    }
-    '/vendor/admin/approvals': {
-      id: '/vendor/admin/approvals'
-      path: '/admin/approvals'
-      fullPath: '/vendor/admin/approvals'
-      preLoaderRoute: typeof VendorAdminApprovalsRouteImport
-      parentRoute: typeof VendorRoute
-    }
     '/api/public/paystack-webhook': {
       id: '/api/public/paystack-webhook'
       path: '/api/public/paystack-webhook'
@@ -553,6 +590,26 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface AdminRouteChildren {
+  AdminApprovalsRoute: typeof AdminApprovalsRoute
+  AdminDiagnosticsRoute: typeof AdminDiagnosticsRoute
+  AdminOrdersRoute: typeof AdminOrdersRoute
+  AdminProductsRoute: typeof AdminProductsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminApprovalsRoute: AdminApprovalsRoute,
+  AdminDiagnosticsRoute: AdminDiagnosticsRoute,
+  AdminOrdersRoute: AdminOrdersRoute,
+  AdminProductsRoute: AdminProductsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface CheckoutRouteChildren {
   CheckoutSuccessRoute: typeof CheckoutSuccessRoute
@@ -567,7 +624,6 @@ const CheckoutRouteWithChildren = CheckoutRoute._addFileChildren(
 )
 
 interface VendorRouteChildren {
-  VendorDiagnosticsRoute: typeof VendorDiagnosticsRoute
   VendorEarningsRoute: typeof VendorEarningsRoute
   VendorInventoryRoute: typeof VendorInventoryRoute
   VendorOnboardingRoute: typeof VendorOnboardingRoute
@@ -577,19 +633,14 @@ interface VendorRouteChildren {
   VendorReportsRoute: typeof VendorReportsRoute
   VendorReturnsRoute: typeof VendorReturnsRoute
   VendorReviewsRoute: typeof VendorReviewsRoute
-  VendorSettingsRoute: typeof VendorSettingsRoute
   VendorStoreRoute: typeof VendorStoreRoute
   VendorIndexRoute: typeof VendorIndexRoute
-  VendorAdminApprovalsRoute: typeof VendorAdminApprovalsRoute
-  VendorAdminOrdersRoute: typeof VendorAdminOrdersRoute
-  VendorAdminProductsRoute: typeof VendorAdminProductsRoute
   VendorProductsNewRoute: typeof VendorProductsNewRoute
   VendorProductsPendingRoute: typeof VendorProductsPendingRoute
   VendorProductsIndexRoute: typeof VendorProductsIndexRoute
 }
 
 const VendorRouteChildren: VendorRouteChildren = {
-  VendorDiagnosticsRoute: VendorDiagnosticsRoute,
   VendorEarningsRoute: VendorEarningsRoute,
   VendorInventoryRoute: VendorInventoryRoute,
   VendorOnboardingRoute: VendorOnboardingRoute,
@@ -599,12 +650,8 @@ const VendorRouteChildren: VendorRouteChildren = {
   VendorReportsRoute: VendorReportsRoute,
   VendorReturnsRoute: VendorReturnsRoute,
   VendorReviewsRoute: VendorReviewsRoute,
-  VendorSettingsRoute: VendorSettingsRoute,
   VendorStoreRoute: VendorStoreRoute,
   VendorIndexRoute: VendorIndexRoute,
-  VendorAdminApprovalsRoute: VendorAdminApprovalsRoute,
-  VendorAdminOrdersRoute: VendorAdminOrdersRoute,
-  VendorAdminProductsRoute: VendorAdminProductsRoute,
   VendorProductsNewRoute: VendorProductsNewRoute,
   VendorProductsPendingRoute: VendorProductsPendingRoute,
   VendorProductsIndexRoute: VendorProductsIndexRoute,
@@ -615,6 +662,7 @@ const VendorRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRouteWithChildren,
   LoginRoute: LoginRoute,

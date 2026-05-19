@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { VendorShell } from "@/components/vendor-shell";
+import { AdminShell } from "@/components/admin-shell";
 import { listOrdersAdmin, updateOrderStatusAdmin } from "@/lib/checkout.functions";
 import { formatNaira } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ const STATUS_VARIANT: Record<Status, "default" | "secondary" | "destructive" | "
   refunded: "destructive",
 };
 
-export const Route = createFileRoute("/vendor/admin/orders")({
+export const Route = createFileRoute("/admin/orders")({
   component: AdminOrdersPage,
   head: () => ({ meta: [{ title: "Orders — ecove Admin" }] }),
 });
@@ -56,22 +56,22 @@ function AdminOrdersPage() {
     onError: (e) => toast.error((e as Error).message),
   });
 
-  if (loading) return <VendorShell title="Orders"><div className="p-10">Loading…</div></VendorShell>;
+  if (loading) return <AdminShell title="Orders"><div className="p-10">Loading…</div></AdminShell>;
   if (!user || !isAdmin) {
     return (
-      <VendorShell title="Orders" subtitle="Admin only">
+      <AdminShell title="Orders" subtitle="Admin only">
         <div className="mx-auto max-w-md rounded-lg border p-8 text-center">
           <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
           <p className="mt-3 font-semibold">Admins only</p>
         </div>
-      </VendorShell>
+      </AdminShell>
     );
   }
 
   const orders = data?.orders ?? [];
 
   return (
-    <VendorShell title="Orders" subtitle="Manage payment & fulfilment status">
+    <AdminShell title="Orders" subtitle="Manage payment & fulfilment status">
       <div className="mb-4 flex items-center gap-3">
         <Select value={filter} onValueChange={(v) => setFilter(v as Status | "all")}>
           <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
@@ -147,6 +147,6 @@ function AdminOrdersPage() {
           <p className="py-10 text-center text-muted-foreground">No orders found.</p>
         )}
       </div>
-    </VendorShell>
+    </AdminShell>
   );
 }

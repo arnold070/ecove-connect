@@ -13,7 +13,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthProvider";
-import { VendorShell } from "@/components/vendor-shell";
+import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,7 +48,7 @@ import {
   type VendorStatus,
 } from "@/lib/vendors.functions";
 
-export const Route = createFileRoute("/vendor/admin/approvals")({
+export const Route = createFileRoute("/admin/approvals")({
   component: AdminApprovalsPage,
   head: () => ({
     meta: [{ title: "Vendor approvals — admin" }],
@@ -72,11 +72,11 @@ function AdminApprovalsPage() {
   }
   if (!hasRole("admin")) {
     return (
-      <VendorShell title="Vendor approvals" subtitle="Admin only">
+      <AdminShell title="Vendor approvals" subtitle="Admin only">
         <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-sm text-destructive">
           You don&apos;t have permission to view this page.
         </div>
-      </VendorShell>
+      </AdminShell>
     );
   }
   return <ApprovalsInner />;
@@ -97,7 +97,7 @@ function ApprovalsInner() {
   }
 
   return (
-    <VendorShell
+    <AdminShell
       title="Vendor approvals"
       subtitle="Review pending vendor applications and KYC documents"
     >
@@ -151,7 +151,7 @@ function ApprovalsInner() {
           )}
         </CardContent>
       </Card>
-    </VendorShell>
+    </AdminShell>
   );
 }
 
@@ -231,11 +231,11 @@ function VendorDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
   if (isLoading || !data) {
     return (
-      <VendorShell title="Vendor review" subtitle="Loading…">
+      <AdminShell title="Vendor review" subtitle="Loading…">
         <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
         </div>
-      </VendorShell>
+      </AdminShell>
     );
   }
 
@@ -243,7 +243,7 @@ function VendorDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const isPending = v.status === "pending";
 
   return (
-    <VendorShell title={v.store_name} subtitle={`Vendor • ${v.country}`}>
+    <AdminShell title={v.store_name} subtitle={`Vendor • ${v.country}`}>
       <Button variant="ghost" size="sm" onClick={onBack} className="mb-4">
         <ArrowLeft className="mr-1 h-4 w-4" /> Back to queue
       </Button>
@@ -398,7 +398,7 @@ function VendorDetail({ id, onBack }: { id: string; onBack: () => void }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </VendorShell>
+    </AdminShell>
   );
 }
 

@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { VendorShell } from "@/components/vendor-shell";
+import { AdminShell } from "@/components/admin-shell";
 import { useAuth } from "@/auth/AuthProvider";
 import {
   getPlatformSettings,
@@ -69,7 +69,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/vendor/settings")({
+export const Route = createFileRoute("/admin/settings")({
   component: VendorSettingsPage,
   head: () => ({ meta: [{ title: "Settings — ecove Vendor" }] }),
 });
@@ -90,17 +90,17 @@ function VendorSettingsPage() {
 
   if (authLoading) {
     return (
-      <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
+      <AdminShell title="Platform Settings" subtitle="Manage API keys and integrations">
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
-      </VendorShell>
+      </AdminShell>
     );
   }
 
   if (!user || !isAdmin) {
     return (
-      <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
+      <AdminShell title="Platform Settings" subtitle="Manage API keys and integrations">
         <div className="mx-auto max-w-md rounded-lg border border-border bg-card p-8 text-center">
           <Lock className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-3 text-lg font-semibold">Admins only</h2>
@@ -113,7 +113,7 @@ function VendorSettingsPage() {
             </Link>
           )}
         </div>
-      </VendorShell>
+      </AdminShell>
     );
   }
 
@@ -149,7 +149,7 @@ function AdminSettingsView() {
   };
 
   return (
-    <VendorShell title="Platform Settings" subtitle="Manage API keys and integrations">
+    <AdminShell title="Platform Settings" subtitle="Manage API keys and integrations">
       {isLoading && (
         <div className="flex items-center justify-center py-20">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -189,7 +189,7 @@ function AdminSettingsView() {
           <AuditLogCard allKeys={allKeys} />
         </div>
       )}
-    </VendorShell>
+    </AdminShell>
   );
 }
 

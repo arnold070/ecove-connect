@@ -33,7 +33,9 @@ const NAV: { title: string; items: AdminNavLink[] }[] = [
     title: "Platform",
     items: [
       { to: "/admin/settings", label: "API Keys & Integrations", icon: <Settings className="h-4 w-4" /> },
+      { to: "/admin/paystack", label: "Paystack diagnostics", icon: <Stethoscope className="h-4 w-4" /> },
       { to: "/admin/diagnostics", label: "Diagnostics", icon: <Stethoscope className="h-4 w-4" /> },
+
     ],
   },
 ];

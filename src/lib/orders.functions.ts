@@ -4,7 +4,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { sendRefundDecisionEmail } from "./email.server";
+import { sendRefundDecisionEmail, sendVendorRefundEmail, type RefundEmailStatus } from "./email.server";
 
 export const getMyOrder = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -117,24 +117,175 @@ async function assertAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("Forbidden: admin role required");
 }
 
-export const listRefundsAdmin = createServerFn({ method: "GET" })
+const refundFilterSchema = z
+  .object({
+    status: z
+      .enum(["requested", "approved", "rejected", "refunded", "cancelled"])
+      .optional(),
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    order_number: z.string().trim().min(1).max(100).optional(),
+    buyer_email: z.string().trim().min(1).max(255).optional(),
+    query: z.string().trim().min(1).max(255).optional(),
+  })
+  .optional();
+
+type AdminRefundRow = {
+  id: string;
+  reason: string;
+  status: string;
+  admin_note: string | null;
+  created_at: string;
+  updated_at: string | null;
+  processed_at: string | null;
+  buyer_id: string;
+  buyer_email?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  item: any;
+};
+
+async function queryAdminRefunds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  filters: z.infer<typeof refundFilterSchema>,
+  limit = 200,
+) {
+  let q = supabase
+    .from("refund_requests")
+    .select(
+      `id, reason, status, admin_note, created_at, updated_at, processed_at, buyer_id,
+       item:order_items!inner(
+         id, product_title, quantity, unit_price_kobo, vendor_payout_kobo,
+         order:orders!inner(id, order_number)
+       )`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (filters?.status) q = q.eq("status", filters.status);
+  if (filters?.from) q = q.gte("created_at", filters.from);
+  if (filters?.to) q = q.lte("created_at", filters.to);
+  if (filters?.order_number) {
+    q = q.ilike("item.order.order_number", `%${filters.order_number}%`);
+  }
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  let rows = (data ?? []) as AdminRefundRow[];
+
+  if (filters?.buyer_email || filters?.query) {
+    const buyerIds = Array.from(
+      new Set(rows.map((r) => r.buyer_id).filter(Boolean)),
+    );
+    if (buyerIds.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .in("id", buyerIds);
+      const emailById = new Map<string, string>(
+        (profs ?? []).map((p: { id: string; email: string | null }) => [p.id, p.email ?? ""]),
+      );
+      for (const r of rows) {
+        r.buyer_email = emailById.get(r.buyer_id) ?? null;
+      }
+      if (filters.buyer_email) {
+        const needle = filters.buyer_email.toLowerCase();
+        rows = rows.filter((r) =>
+          String(r.buyer_email ?? "").toLowerCase().includes(needle),
+        );
+      }
+      if (filters.query) {
+        const needle = filters.query.toLowerCase();
+        rows = rows.filter((r) => {
+          const it = r.item;
+          return (
+            String(it?.order?.order_number ?? "").toLowerCase().includes(needle) ||
+            String(it?.product_title ?? "").toLowerCase().includes(needle) ||
+            String(r.buyer_email ?? "").toLowerCase().includes(needle) ||
+            String(r.reason ?? "").toLowerCase().includes(needle)
+          );
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+export const listRefundsAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: unknown) =>
+    z.object({ filters: refundFilterSchema }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
-    const { data, error } = await supabase
-      .from("refund_requests")
-      .select(
-        `id, reason, status, admin_note, created_at, updated_at, processed_at, buyer_id,
-         item:order_items!inner(
-           id, product_title, quantity, unit_price_kobo, vendor_payout_kobo,
-           order:orders!inner(id, order_number)
-         )`,
-      )
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw new Error(error.message);
-    return { refunds: data ?? [] };
+    const refunds = await queryAdminRefunds(supabase, data.filters);
+    return { refunds };
+  });
+
+function csvEscape(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  const s = typeof v === "string" ? v : String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+export const exportRefundsCsvAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ filters: refundFilterSchema }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    // Force buyer email resolution by injecting an always-true query when none provided.
+    const filters = { ...(data.filters ?? {}), query: data.filters?.query ?? " " };
+    const rows = await queryAdminRefunds(supabase, filters, 5000);
+    const header = [
+      "refund_id",
+      "status",
+      "created_at",
+      "updated_at",
+      "processed_at",
+      "order_number",
+      "buyer_email",
+      "product_title",
+      "quantity",
+      "amount_kobo",
+      "amount_naira",
+      "admin_note",
+      "reason",
+    ];
+    const lines = [header.join(",")];
+    for (const r of rows) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const it = (r as any).item;
+      const qty = Number(it?.quantity ?? 0);
+      const unit = Number(it?.unit_price_kobo ?? 0);
+      const amountKobo = qty * unit;
+      lines.push(
+        [
+          r.id,
+          r.status,
+          r.created_at,
+          r.updated_at ?? "",
+          r.processed_at ?? "",
+          it?.order?.order_number ?? "",
+          (r as { buyer_email?: string | null }).buyer_email ?? "",
+          it?.product_title ?? "",
+          qty,
+          amountKobo,
+          (amountKobo / 100).toFixed(2),
+          r.admin_note ?? "",
+          r.reason ?? "",
+        ]
+          .map(csvEscape)
+          .join(","),
+      );
+    }
+    return {
+      csv: lines.join("\n"),
+      count: rows.length,
+      filename: `refunds-${new Date().toISOString().slice(0, 10)}.csv`,
+    };
   });
 
 const decideRefundSchema = z.object({
@@ -149,9 +300,11 @@ async function loadRefundContext(
   refundId: string,
 ): Promise<{
   buyerEmail?: string;
+  vendorEmail?: string;
   productTitle?: string;
   amountKobo: number;
   reference?: string | null;
+  orderNumber?: string | null;
 }> {
   const { data: rf } = await supabase
     .from("refund_requests")
@@ -162,27 +315,71 @@ async function loadRefundContext(
   const { data: item } = await supabase
     .from("order_items")
     .select(
-      "product_title, unit_price_kobo, quantity, order:orders!inner(customer_id, paystack_reference)",
+      `product_title, unit_price_kobo, quantity, vendor_id,
+       order:orders!inner(customer_id, paystack_reference, order_number),
+       vendor:vendors!inner(owner_id)`,
     )
     .eq("id", rf.order_item_id)
     .maybeSingle();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ord = item?.order as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const vnd = item?.vendor as any;
   let buyerEmail: string | undefined;
-  if (ord?.customer_id) {
-    const { data: prof } = await supabase
+  let vendorEmail: string | undefined;
+  const ownerIds: string[] = [];
+  if (ord?.customer_id) ownerIds.push(ord.customer_id);
+  if (vnd?.owner_id) ownerIds.push(vnd.owner_id);
+  if (ownerIds.length) {
+    const { data: profs } = await supabase
       .from("profiles")
-      .select("email")
-      .eq("id", ord.customer_id)
-      .maybeSingle();
-    buyerEmail = prof?.email ?? undefined;
+      .select("id, email")
+      .in("id", ownerIds);
+    for (const p of profs ?? []) {
+      if (p.id === ord?.customer_id) buyerEmail = p.email ?? undefined;
+      if (p.id === vnd?.owner_id) vendorEmail = p.email ?? undefined;
+    }
   }
   return {
     buyerEmail,
+    vendorEmail,
     productTitle: item?.product_title,
     amountKobo: item ? Number(item.unit_price_kobo) * Number(item.quantity) : 0,
     reference: ord?.paystack_reference ?? null,
+    orderNumber: ord?.order_number ?? null,
   };
+}
+
+async function notifyRefundParties(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  refundId: string,
+  status: RefundEmailStatus,
+  note?: string | null,
+) {
+  const ctx = await loadRefundContext(supabase, refundId);
+  if (!ctx.productTitle) return;
+  if (ctx.buyerEmail) {
+    await sendRefundDecisionEmail({
+      to: ctx.buyerEmail,
+      status,
+      productTitle: ctx.productTitle,
+      amountKobo: ctx.amountKobo,
+      note,
+      reference: ctx.reference,
+    }).catch(() => undefined);
+  }
+  if (ctx.vendorEmail) {
+    await sendVendorRefundEmail({
+      to: ctx.vendorEmail,
+      status,
+      productTitle: ctx.productTitle,
+      amountKobo: ctx.amountKobo,
+      orderNumber: ctx.orderNumber,
+      buyerEmail: ctx.buyerEmail,
+      note,
+    }).catch(() => undefined);
+  }
 }
 
 export const decideRefundAdmin = createServerFn({ method: "POST" })
@@ -201,8 +398,6 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
     if (!rf) throw new Error("Refund request not found");
     if (rf.status !== "requested") throw new Error("Already decided");
 
-    const ctx = await loadRefundContext(supabase, data.id);
-
     if (!data.approve) {
       await supabase
         .from("refund_requests")
@@ -213,15 +408,7 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
           processed_at: new Date().toISOString(),
         })
         .eq("id", data.id);
-      if (ctx.buyerEmail && ctx.productTitle) {
-        await sendRefundDecisionEmail({
-          to: ctx.buyerEmail,
-          status: "rejected",
-          productTitle: ctx.productTitle,
-          amountKobo: ctx.amountKobo,
-          note: data.note,
-        }).catch(() => undefined);
-      }
+      await notifyRefundParties(supabase, data.id, "rejected", data.note);
       return { success: true, status: "rejected" };
     }
 
@@ -242,15 +429,7 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
 
-    if (ctx.buyerEmail && ctx.productTitle) {
-      await sendRefundDecisionEmail({
-        to: ctx.buyerEmail,
-        status: "approved",
-        productTitle: ctx.productTitle,
-        amountKobo: ctx.amountKobo,
-        note: data.note,
-      }).catch(() => undefined);
-    }
+    await notifyRefundParties(supabase, data.id, "approved", data.note);
     return { success: true, status: "refunded" };
   });
 
@@ -271,14 +450,31 @@ export const cancelMyRefund = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (!rf) throw new Error("Refund not found or already decided");
 
-    const ctx = await loadRefundContext(supabase, data.id);
-    if (ctx.buyerEmail && ctx.productTitle) {
-      await sendRefundDecisionEmail({
-        to: ctx.buyerEmail,
-        status: "cancelled",
-        productTitle: ctx.productTitle,
-        amountKobo: ctx.amountKobo,
-      }).catch(() => undefined);
-    }
+    await notifyRefundParties(supabase, data.id, "cancelled");
     return { success: true };
+  });
+
+// ---------------------------------------------------------------------------
+// Vendor-facing: refunds on the vendor's own items.
+// RLS (refund_request_owner_read) already restricts to refunds on items
+// owned by vendors whose owner_id = auth.uid().
+// ---------------------------------------------------------------------------
+export const listMyVendorRefunds = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("refund_requests")
+      .select(
+        `id, reason, status, admin_note, created_at, updated_at, processed_at,
+         item:order_items!inner(
+           id, product_title, quantity, unit_price_kobo, vendor_payout_kobo,
+           vendor:vendors!inner(owner_id),
+           order:orders!inner(id, order_number)
+         )`,
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return { refunds: data ?? [] };
   });

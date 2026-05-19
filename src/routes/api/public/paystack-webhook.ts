@@ -14,6 +14,7 @@ import {
   sendOrderReceipt,
   sendPayoutPaidEmail,
   sendRefundDecisionEmail,
+  sendVendorRefundEmail,
 } from "@/lib/email.server";
 
 const RATE_LIMIT_PER_MIN = 120;
@@ -298,39 +299,61 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
                     .in("status", ["requested", "approved"])
                     .select("id, order_item_id, admin_note");
                   for (const rf of flipped ?? []) {
-                    // Best-effort completion email — only fires the first
+                    // Best-effort completion emails — only fire the first
                     // time the row transitions because subsequent deliveries
                     // see status='refunded' and the UPDATE filter excludes them.
                     try {
                       const { data: item } = await supabaseAdmin
                         .from("order_items")
                         .select(
-                          "product_title, unit_price_kobo, quantity, order:orders!inner(customer_id)",
+                          `product_title, unit_price_kobo, quantity, vendor_id,
+                           order:orders!inner(customer_id, order_number),
+                           vendor:vendors!inner(owner_id)`,
                         )
                         .eq("id", rf.order_item_id)
                         .maybeSingle();
+                      if (!item) continue;
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      const buyerId = (item?.order as any)?.customer_id as
-                        | string
-                        | undefined;
-                      if (item && buyerId) {
-                        const { data: prof } = await supabaseAdmin
+                      const ordX = item.order as any;
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      const vndX = item.vendor as any;
+                      const ids = [ordX?.customer_id, vndX?.owner_id].filter(
+                        Boolean,
+                      ) as string[];
+                      let buyerEmail: string | undefined;
+                      let vendorEmail: string | undefined;
+                      if (ids.length) {
+                        const { data: profs } = await supabaseAdmin
                           .from("profiles")
-                          .select("email")
-                          .eq("id", buyerId)
-                          .maybeSingle();
-                        if (prof?.email) {
-                          await sendRefundDecisionEmail({
-                            to: prof.email,
-                            status: "completed",
-                            productTitle: item.product_title,
-                            amountKobo:
-                              Number(item.unit_price_kobo) *
-                              Number(item.quantity),
-                            note: rf.admin_note,
-                            reference: refundRef,
-                          });
+                          .select("id, email")
+                          .in("id", ids);
+                        for (const p of profs ?? []) {
+                          if (p.id === ordX?.customer_id) buyerEmail = p.email ?? undefined;
+                          if (p.id === vndX?.owner_id) vendorEmail = p.email ?? undefined;
                         }
+                      }
+                      const amountKobo =
+                        Number(item.unit_price_kobo) * Number(item.quantity);
+                      if (buyerEmail) {
+                        await sendRefundDecisionEmail({
+                          to: buyerEmail,
+                          status: "completed",
+                          productTitle: item.product_title,
+                          amountKobo,
+                          note: rf.admin_note,
+                          reference: refundRef,
+                        });
+                      }
+                      if (vendorEmail) {
+                        await sendVendorRefundEmail({
+                          to: vendorEmail,
+                          status: "completed",
+                          productTitle: item.product_title,
+                          amountKobo,
+                          orderNumber: ordX?.order_number ?? null,
+                          buyerEmail,
+                          note: rf.admin_note,
+                        });
                       }
                     } catch (e) {
                       console.error("[paystack-webhook] refund email failed", e);

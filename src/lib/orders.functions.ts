@@ -149,9 +149,11 @@ async function loadRefundContext(
   refundId: string,
 ): Promise<{
   buyerEmail?: string;
+  vendorEmail?: string;
   productTitle?: string;
   amountKobo: number;
   reference?: string | null;
+  orderNumber?: string | null;
 }> {
   const { data: rf } = await supabase
     .from("refund_requests")
@@ -162,27 +164,71 @@ async function loadRefundContext(
   const { data: item } = await supabase
     .from("order_items")
     .select(
-      "product_title, unit_price_kobo, quantity, order:orders!inner(customer_id, paystack_reference)",
+      `product_title, unit_price_kobo, quantity, vendor_id,
+       order:orders!inner(customer_id, paystack_reference, order_number),
+       vendor:vendors!inner(owner_id)`,
     )
     .eq("id", rf.order_item_id)
     .maybeSingle();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ord = item?.order as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const vnd = item?.vendor as any;
   let buyerEmail: string | undefined;
-  if (ord?.customer_id) {
-    const { data: prof } = await supabase
+  let vendorEmail: string | undefined;
+  const ownerIds: string[] = [];
+  if (ord?.customer_id) ownerIds.push(ord.customer_id);
+  if (vnd?.owner_id) ownerIds.push(vnd.owner_id);
+  if (ownerIds.length) {
+    const { data: profs } = await supabase
       .from("profiles")
-      .select("email")
-      .eq("id", ord.customer_id)
-      .maybeSingle();
-    buyerEmail = prof?.email ?? undefined;
+      .select("id, email")
+      .in("id", ownerIds);
+    for (const p of profs ?? []) {
+      if (p.id === ord?.customer_id) buyerEmail = p.email ?? undefined;
+      if (p.id === vnd?.owner_id) vendorEmail = p.email ?? undefined;
+    }
   }
   return {
     buyerEmail,
+    vendorEmail,
     productTitle: item?.product_title,
     amountKobo: item ? Number(item.unit_price_kobo) * Number(item.quantity) : 0,
     reference: ord?.paystack_reference ?? null,
+    orderNumber: ord?.order_number ?? null,
   };
+}
+
+async function notifyRefundParties(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  refundId: string,
+  status: RefundEmailStatus,
+  note?: string | null,
+) {
+  const ctx = await loadRefundContext(supabase, refundId);
+  if (!ctx.productTitle) return;
+  if (ctx.buyerEmail) {
+    await sendRefundDecisionEmail({
+      to: ctx.buyerEmail,
+      status,
+      productTitle: ctx.productTitle,
+      amountKobo: ctx.amountKobo,
+      note,
+      reference: ctx.reference,
+    }).catch(() => undefined);
+  }
+  if (ctx.vendorEmail) {
+    await sendVendorRefundEmail({
+      to: ctx.vendorEmail,
+      status,
+      productTitle: ctx.productTitle,
+      amountKobo: ctx.amountKobo,
+      orderNumber: ctx.orderNumber,
+      buyerEmail: ctx.buyerEmail,
+      note,
+    }).catch(() => undefined);
+  }
 }
 
 export const decideRefundAdmin = createServerFn({ method: "POST" })

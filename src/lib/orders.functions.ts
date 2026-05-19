@@ -302,3 +302,28 @@ export const cancelMyRefund = createServerFn({ method: "POST" })
     await notifyRefundParties(supabase, data.id, "cancelled");
     return { success: true };
   });
+
+// ---------------------------------------------------------------------------
+// Vendor-facing: refunds on the vendor's own items.
+// RLS (refund_request_owner_read) already restricts to refunds on items
+// owned by vendors whose owner_id = auth.uid().
+// ---------------------------------------------------------------------------
+export const listMyVendorRefunds = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase } = context;
+    const { data, error } = await supabase
+      .from("refund_requests")
+      .select(
+        `id, reason, status, admin_note, created_at, updated_at, processed_at,
+         item:order_items!inner(
+           id, product_title, quantity, unit_price_kobo, vendor_payout_kobo,
+           vendor:vendors!inner(owner_id),
+           order:orders!inner(id, order_number)
+         )`,
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return { refunds: data ?? [] };
+  });

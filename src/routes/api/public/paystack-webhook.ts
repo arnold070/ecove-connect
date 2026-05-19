@@ -10,6 +10,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getPlatformValue } from "@/lib/platform-settings.server";
+import { sendOrderReceipt, sendPayoutPaidEmail } from "@/lib/email.server";
 
 const RATE_LIMIT_PER_MIN = 120;
 
@@ -143,6 +144,36 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
               .from("payment_webhook_events")
               .update({ processed_at: new Date().toISOString() })
               .eq("event_id", eventId);
+
+            // 3. Email buyer receipt (best-effort, never blocks webhook)
+            try {
+              const { data: full } = await supabaseAdmin
+                .from("orders")
+                .select(
+                  "id, order_number, total_kobo, customer_id, items:order_items(product_title, quantity, unit_price_kobo)",
+                )
+                .eq("id", orderId)
+                .maybeSingle();
+              const buyerEmail = body?.data?.customer?.email as string | undefined;
+              if (full && buyerEmail) {
+                const origin = new URL(request.url).origin;
+                await sendOrderReceipt({
+                  to: buyerEmail,
+                  orderNumber: String(full.order_number ?? full.id),
+                  totalKobo: Number(full.total_kobo),
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  items: ((full.items as any[]) ?? []).map((i) => ({
+                    title: i.product_title,
+                    qty: i.quantity,
+                    unitKobo: i.unit_price_kobo,
+                  })),
+                  orderId: full.id,
+                  appOrigin: origin,
+                });
+              }
+            } catch (e) {
+              console.error("[paystack-webhook] receipt email failed", e);
+            }
           }
         }
 
@@ -174,6 +205,31 @@ export const Route = createFileRoute("/api/public/paystack-webhook")({
                   payout_id: payout.id,
                   note: `Paystack transfer ${transferRef}`,
                 });
+                // Email vendor owner
+                try {
+                  const { data: v } = await supabaseAdmin
+                    .from("vendors")
+                    .select("business_name, store_name, owner_id")
+                    .eq("id", payout.vendor_id)
+                    .maybeSingle();
+                  if (v?.owner_id) {
+                    const { data: u } = await supabaseAdmin
+                      .from("profiles")
+                      .select("email")
+                      .eq("id", v.owner_id)
+                      .maybeSingle();
+                    if (u?.email) {
+                      await sendPayoutPaidEmail({
+                        to: u.email,
+                        amountKobo: payout.amount_kobo,
+                        reference: transferRef,
+                        vendorName: v.business_name ?? v.store_name ?? undefined,
+                      });
+                    }
+                  }
+                } catch (e) {
+                  console.error("[paystack-webhook] payout email failed", e);
+                }
               } else if (eventType === "transfer.failed") {
                 await supabaseAdmin
                   .from("payout_requests")

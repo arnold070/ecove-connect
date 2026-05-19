@@ -30,6 +30,7 @@ import { Route as VendorOnboardingRouteImport } from './routes/vendor.onboarding
 import { Route as VendorInventoryRouteImport } from './routes/vendor.inventory'
 import { Route as VendorEarningsRouteImport } from './routes/vendor.earnings'
 import { Route as VendorDiagnosticsRouteImport } from './routes/vendor.diagnostics'
+import { Route as ProductsSlugRouteImport } from './routes/products.$slug'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminProductsRouteImport } from './routes/admin.products'
@@ -152,6 +153,11 @@ const VendorDiagnosticsRoute = VendorDiagnosticsRouteImport.update({
   path: '/diagnostics',
   getParentRoute: () => VendorRoute,
 } as any)
+const ProductsSlugRoute = ProductsSlugRouteImport.update({
+  id: '/products/$slug',
+  path: '/products/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
   id: '/success',
   path: '/success',
@@ -250,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
+  '/products/$slug': typeof ProductsSlugRoute
   '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
@@ -287,6 +294,7 @@ export interface FileRoutesByTo {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
+  '/products/$slug': typeof ProductsSlugRoute
   '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
@@ -327,6 +335,7 @@ export interface FileRoutesById {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
+  '/products/$slug': typeof ProductsSlugRoute
   '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
@@ -368,6 +377,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
+    | '/products/$slug'
     | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
@@ -405,6 +415,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
+    | '/products/$slug'
     | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
@@ -444,6 +455,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
+    | '/products/$slug'
     | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
@@ -477,6 +489,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   VendorRoute: typeof VendorRouteWithChildren
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
+  ProductsSlugRoute: typeof ProductsSlugRoute
   ApiPublicPaystackWebhookRoute: typeof ApiPublicPaystackWebhookRoute
 }
 
@@ -628,6 +641,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/vendor/diagnostics'
       preLoaderRoute: typeof VendorDiagnosticsRouteImport
       parentRoute: typeof VendorRoute
+    }
+    '/products/$slug': {
+      id: '/products/$slug'
+      path: '/products/$slug'
+      fullPath: '/products/$slug'
+      preLoaderRoute: typeof ProductsSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/checkout/success': {
       id: '/checkout/success'
@@ -846,6 +866,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   VendorRoute: VendorRouteWithChildren,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
+  ProductsSlugRoute: ProductsSlugRoute,
   ApiPublicPaystackWebhookRoute: ApiPublicPaystackWebhookRoute,
 }
 export const routeTree = rootRouteImport

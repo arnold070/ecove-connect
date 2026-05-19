@@ -11,6 +11,33 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getPlatformValue } from "./platform-settings.server";
+import { sendPayoutPaidEmail } from "./email.server";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function emailVendorPayoutPaid(supabase: any, vendorId: string, amountKobo: number, reference: string | null) {
+  try {
+    const { data: v } = await supabase
+      .from("vendors")
+      .select("business_name, store_name, owner_id")
+      .eq("id", vendorId)
+      .maybeSingle();
+    if (!v?.owner_id) return;
+    const { data: u } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", v.owner_id)
+      .maybeSingle();
+    if (!u?.email) return;
+    await sendPayoutPaidEmail({
+      to: u.email,
+      amountKobo,
+      reference,
+      vendorName: v.business_name ?? v.store_name ?? undefined,
+    });
+  } catch (e) {
+    console.error("[payouts] email failed", e);
+  }
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function assertAdmin(supabase: any, userId: string) {
@@ -319,6 +346,7 @@ export const approvePayoutAdmin = createServerFn({ method: "POST" })
           payout_id: payout.id,
           note: `Payout ${transferRef}`,
         });
+        await emailVendorPayoutPaid(supabase, payout.vendor_id, payout.amount_kobo, transferRef);
       }
       return { success: true, status: newStatus, transfer_ref: transferRef };
     }
@@ -340,6 +368,7 @@ export const approvePayoutAdmin = createServerFn({ method: "POST" })
       payout_id: payout.id,
       note: `Manual payout`,
     });
+    await emailVendorPayoutPaid(supabase, payout.vendor_id, payout.amount_kobo, null);
     return { success: true, status: "paid", transfer_ref: null };
   });
 

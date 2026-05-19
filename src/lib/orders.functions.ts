@@ -4,6 +4,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { sendRefundDecisionEmail } from "./email.server";
 
 export const getMyOrder = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -155,6 +156,27 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
     if (!rf) throw new Error("Refund request not found");
     if (rf.status !== "requested") throw new Error("Already decided");
 
+    // Fetch context for buyer email
+    const { data: item } = await supabase
+      .from("order_items")
+      .select(
+        "product_title, vendor_payout_kobo, unit_price_kobo, quantity, order:orders!inner(customer_id)",
+      )
+      .eq("id", rf.order_item_id)
+      .maybeSingle();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const buyerId = (item?.order as any)?.customer_id as string | undefined;
+    let buyerEmail: string | undefined;
+    if (buyerId) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("id", buyerId)
+        .maybeSingle();
+      buyerEmail = prof?.email ?? undefined;
+    }
+    const refundAmount = item ? Number(item.unit_price_kobo) * Number(item.quantity) : 0;
+
     if (!data.approve) {
       await supabase
         .from("refund_requests")
@@ -165,6 +187,15 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
           processed_at: new Date().toISOString(),
         })
         .eq("id", data.id);
+      if (buyerEmail && item) {
+        await sendRefundDecisionEmail({
+          to: buyerEmail,
+          approved: false,
+          productTitle: item.product_title,
+          amountKobo: refundAmount,
+          note: data.note,
+        }).catch(() => undefined);
+      }
       return { success: true, status: "rejected" };
     }
 
@@ -184,5 +215,15 @@ export const decideRefundAdmin = createServerFn({ method: "POST" })
         processed_at: new Date().toISOString(),
       })
       .eq("id", data.id);
+
+    if (buyerEmail && item) {
+      await sendRefundDecisionEmail({
+        to: buyerEmail,
+        approved: true,
+        productTitle: item.product_title,
+        amountKobo: refundAmount,
+        note: data.note,
+      }).catch(() => undefined);
+    }
     return { success: true, status: "refunded" };
   });

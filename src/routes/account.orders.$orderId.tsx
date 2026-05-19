@@ -124,11 +124,18 @@ function OrderDetail() {
                               />
                             )}
                             {rf && (
-                              <Badge variant="secondary">
-                                Refund: {rf.status}
-                              </Badge>
+                              <div className="w-full pt-2">
+                                <RefundStatusTimeline
+                                  status={rf.status as RefundStatus}
+                                  createdAt={rf.created_at}
+                                  updatedAt={rf.updated_at}
+                                  processedAt={rf.processed_at}
+                                  adminNote={rf.admin_note}
+                                />
+                              </div>
                             )}
                           </div>
+
                         </CardContent>
                       </Card>
                     );

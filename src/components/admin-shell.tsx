@@ -26,6 +26,7 @@ const NAV: { title: string; items: AdminNavLink[] }[] = [
       { to: "/admin/approvals", label: "Vendor approvals", icon: <Users className="h-4 w-4" /> },
       { to: "/admin/products", label: "Product moderation", icon: <ShieldCheck className="h-4 w-4" /> },
       { to: "/admin/orders", label: "Orders & payments", icon: <Truck className="h-4 w-4" /> },
+      { to: "/admin/payouts", label: "Payouts & refunds", icon: <Truck className="h-4 w-4" /> },
     ],
   },
   {

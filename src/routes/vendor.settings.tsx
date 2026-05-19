@@ -227,7 +227,7 @@ function TestServiceButton({
   service,
   label,
 }: {
-  service: "sentry" | "paystack" | "stripe" | "smtp" | "cloudinary" | "resend";
+  service: TestService;
   label: string;
 }) {
   const testFn = useServerFn(testPlatformService);

@@ -4,7 +4,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { sendRefundDecisionEmail } from "./email.server";
+import { sendRefundDecisionEmail, sendVendorRefundEmail, type RefundEmailStatus } from "./email.server";
 
 export const getMyOrder = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

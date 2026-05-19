@@ -106,7 +106,7 @@ function ProductPage() {
             </div>
             {product.images.length > 1 && (
               <div className="mt-3 flex gap-2 overflow-x-auto">
-                {product.images.map((img, i) => (
+                {product.images.map((img: PublicProduct["images"][number], i: number) => (
                   <button
                     key={i}
                     type="button"

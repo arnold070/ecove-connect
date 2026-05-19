@@ -71,6 +71,7 @@ function AdminPaystackDiagnostics() {
     await run("paystack");
     await run("paystack_webhook");
     await run("rate_limit");
+    await run("webhook_replay");
   }
 
   return (

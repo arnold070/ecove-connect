@@ -525,12 +525,12 @@ function SettingRow({ setting, onUpdated }: { setting: PlatformSetting; onUpdate
         setVerifyResult(null);
       } else if (result.ok) {
         toast.success(`${setting.label} saved & verified`, { description: result.message });
-        setVerifyResult({ ok: true, ...result });
+        setVerifyResult({ ok: true, message: result.message, detail: result.detail });
       } else {
         toast.error(`${setting.label} saved but verification failed`, {
           description: result.message,
         });
-        setVerifyResult({ ok: false, ...result });
+        setVerifyResult({ ok: false, message: result.message, detail: result.detail });
       }
       setEditing(false);
       setRevealedValue(null);

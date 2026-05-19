@@ -47,7 +47,7 @@ import {
   type ProductStatus,
 } from "@/lib/products.functions";
 
-export const Route = createFileRoute("/vendor/admin/products")({
+export const Route = createFileRoute("/admin/products")({
   component: AdminProductsPage,
   head: () => ({ meta: [{ title: "Product moderation — admin" }] }),
 });

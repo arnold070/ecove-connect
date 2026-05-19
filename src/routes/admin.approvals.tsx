@@ -48,7 +48,7 @@ import {
   type VendorStatus,
 } from "@/lib/vendors.functions";
 
-export const Route = createFileRoute("/vendor/admin/approvals")({
+export const Route = createFileRoute("/admin/approvals")({
   component: AdminApprovalsPage,
   head: () => ({
     meta: [{ title: "Vendor approvals — admin" }],

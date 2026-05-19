@@ -69,7 +69,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/vendor/settings")({
+export const Route = createFileRoute("/admin/settings")({
   component: VendorSettingsPage,
   head: () => ({ meta: [{ title: "Settings — ecove Vendor" }] }),
 });

@@ -20,7 +20,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { slugify } from "@/lib/slug";
 
-export const Route = createFileRoute("/vendor/diagnostics")({
+export const Route = createFileRoute("/admin/diagnostics")({
   component: VendorDiagnosticsPage,
 });
 

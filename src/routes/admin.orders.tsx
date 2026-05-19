@@ -27,7 +27,7 @@ const STATUS_VARIANT: Record<Status, "default" | "secondary" | "destructive" | "
   refunded: "destructive",
 };
 
-export const Route = createFileRoute("/vendor/admin/orders")({
+export const Route = createFileRoute("/admin/orders")({
   component: AdminOrdersPage,
   head: () => ({ meta: [{ title: "Orders — ecove Admin" }] }),
 });

@@ -175,10 +175,12 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   return (
-    <AuthProvider>
-      <Outlet />
-      <LiveChatWidget />
-      <Toaster richColors position="top-right" />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Outlet />
+        <LiveChatWidget />
+        <Toaster richColors position="top-right" />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

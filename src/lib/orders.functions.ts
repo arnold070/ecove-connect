@@ -117,24 +117,163 @@ async function assertAdmin(supabase: any, userId: string) {
   if (!data) throw new Error("Forbidden: admin role required");
 }
 
-export const listRefundsAdmin = createServerFn({ method: "GET" })
+const refundFilterSchema = z
+  .object({
+    status: z
+      .enum(["requested", "approved", "rejected", "refunded", "cancelled"])
+      .optional(),
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    order_number: z.string().trim().min(1).max(100).optional(),
+    buyer_email: z.string().trim().min(1).max(255).optional(),
+    query: z.string().trim().min(1).max(255).optional(),
+  })
+  .optional();
+
+async function queryAdminRefunds(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  filters: z.infer<typeof refundFilterSchema>,
+  limit = 200,
+) {
+  let q = supabase
+    .from("refund_requests")
+    .select(
+      `id, reason, status, admin_note, created_at, updated_at, processed_at, buyer_id,
+       item:order_items!inner(
+         id, product_title, quantity, unit_price_kobo, vendor_payout_kobo,
+         order:orders!inner(id, order_number)
+       )`,
+    )
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (filters?.status) q = q.eq("status", filters.status);
+  if (filters?.from) q = q.gte("created_at", filters.from);
+  if (filters?.to) q = q.lte("created_at", filters.to);
+  if (filters?.order_number) {
+    q = q.ilike("item.order.order_number", `%${filters.order_number}%`);
+  }
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  let rows = (data ?? []) as Array<Record<string, unknown>>;
+
+  // buyer_email / free-text search → resolve via profiles, then filter in-memory
+  if (filters?.buyer_email || filters?.query) {
+    const buyerIds = Array.from(
+      new Set(rows.map((r) => r.buyer_id as string).filter(Boolean)),
+    );
+    if (buyerIds.length) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, email")
+        .in("id", buyerIds);
+      const emailById = new Map<string, string>(
+        (profs ?? []).map((p: { id: string; email: string | null }) => [p.id, p.email ?? ""]),
+      );
+      for (const r of rows) {
+        r.buyer_email = emailById.get(r.buyer_id as string) ?? null;
+      }
+      if (filters.buyer_email) {
+        const needle = filters.buyer_email.toLowerCase();
+        rows = rows.filter((r) =>
+          String(r.buyer_email ?? "").toLowerCase().includes(needle),
+        );
+      }
+      if (filters.query) {
+        const needle = filters.query.toLowerCase();
+        rows = rows.filter((r) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const it = (r as any).item;
+          return (
+            String(it?.order?.order_number ?? "").toLowerCase().includes(needle) ||
+            String(it?.product_title ?? "").toLowerCase().includes(needle) ||
+            String(r.buyer_email ?? "").toLowerCase().includes(needle) ||
+            String(r.reason ?? "").toLowerCase().includes(needle)
+          );
+        });
+      }
+    }
+  }
+  return rows;
+}
+
+export const listRefundsAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: unknown) =>
+    z.object({ filters: refundFilterSchema }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
-    const { data, error } = await supabase
-      .from("refund_requests")
-      .select(
-        `id, reason, status, admin_note, created_at, updated_at, processed_at, buyer_id,
-         item:order_items!inner(
-           id, product_title, quantity, unit_price_kobo, vendor_payout_kobo,
-           order:orders!inner(id, order_number)
-         )`,
-      )
-      .order("created_at", { ascending: false })
-      .limit(200);
-    if (error) throw new Error(error.message);
-    return { refunds: data ?? [] };
+    const refunds = await queryAdminRefunds(supabase, data.filters);
+    return { refunds };
+  });
+
+function csvEscape(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  const s = typeof v === "string" ? v : String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+export const exportRefundsCsvAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ filters: refundFilterSchema }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    // Force buyer email resolution by injecting an always-true query when none provided.
+    const filters = { ...(data.filters ?? {}), query: data.filters?.query ?? " " };
+    const rows = await queryAdminRefunds(supabase, filters, 5000);
+    const header = [
+      "refund_id",
+      "status",
+      "created_at",
+      "updated_at",
+      "processed_at",
+      "order_number",
+      "buyer_email",
+      "product_title",
+      "quantity",
+      "amount_kobo",
+      "amount_naira",
+      "admin_note",
+      "reason",
+    ];
+    const lines = [header.join(",")];
+    for (const r of rows) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const it = (r as any).item;
+      const qty = Number(it?.quantity ?? 0);
+      const unit = Number(it?.unit_price_kobo ?? 0);
+      const amountKobo = qty * unit;
+      lines.push(
+        [
+          r.id,
+          r.status,
+          r.created_at,
+          r.updated_at ?? "",
+          r.processed_at ?? "",
+          it?.order?.order_number ?? "",
+          (r as { buyer_email?: string | null }).buyer_email ?? "",
+          it?.product_title ?? "",
+          qty,
+          amountKobo,
+          (amountKobo / 100).toFixed(2),
+          r.admin_note ?? "",
+          r.reason ?? "",
+        ]
+          .map(csvEscape)
+          .join(","),
+      );
+    }
+    return {
+      csv: lines.join("\n"),
+      count: rows.length,
+      filename: `refunds-${new Date().toISOString().slice(0, 10)}.csv`,
+    };
   });
 
 const decideRefundSchema = z.object({

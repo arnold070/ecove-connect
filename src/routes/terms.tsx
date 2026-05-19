@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/site-header";
+import { absoluteUrl } from "@/lib/site-url";
 
 export const Route = createFileRoute("/terms")({
   component: TermsPage,
@@ -9,9 +10,9 @@ export const Route = createFileRoute("/terms")({
       { name: "description", content: "The terms that govern your use of ecove, Nigeria's multi-vendor marketplace." },
       { property: "og:title", content: "Terms of Service — ecove" },
       { property: "og:description", content: "The terms that govern your use of ecove." },
-      { property: "og:url", content: "https://ecove-connect.lovable.app/terms" },
+      { property: "og:url", content: absoluteUrl("/terms") },
     ],
-    links: [{ rel: "canonical", href: "https://ecove-connect.lovable.app/terms" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/terms") }],
   }),
 });
 

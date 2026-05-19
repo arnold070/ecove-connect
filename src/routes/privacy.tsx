@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/site-header";
+import { absoluteUrl } from "@/lib/site-url";
 
 export const Route = createFileRoute("/privacy")({
   component: PrivacyPage,
@@ -9,9 +10,9 @@ export const Route = createFileRoute("/privacy")({
       { name: "description", content: "How ecove collects, uses, and protects your personal information." },
       { property: "og:title", content: "Privacy Policy — ecove" },
       { property: "og:description", content: "How ecove handles your data." },
-      { property: "og:url", content: "https://ecove-connect.lovable.app/privacy" },
+      { property: "og:url", content: absoluteUrl("/privacy") },
     ],
-    links: [{ rel: "canonical", href: "https://ecove-connect.lovable.app/privacy" }],
+    links: [{ rel: "canonical", href: absoluteUrl("/privacy") }],
   }),
 });
 

@@ -170,12 +170,3 @@ export const testPlatformService = createServerFn({ method: "POST" })
     await assertAdmin(supabase, userId);
     return testers[data.service]!();
   });
-
-export const testPlatformService = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => testSchema.parse(data))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    await assertAdmin(supabase, userId);
-    return testers[data.service]!();
-  });

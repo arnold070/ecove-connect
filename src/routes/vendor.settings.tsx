@@ -191,17 +191,21 @@ function AdminSettingsView() {
   );
 }
 
-const TEST_SERVICE_FOR_CATEGORY: Record<string, "sentry" | "paystack" | "stripe" | "smtp" | undefined> = {
-  monitoring: "sentry",
-  payments: "paystack", // also "stripe" — both buttons rendered below
-  email: "smtp",
-};
+type TestService =
+  | "sentry"
+  | "paystack"
+  | "paystack_webhook"
+  | "stripe"
+  | "smtp"
+  | "cloudinary"
+  | "resend";
 
 function CategoryTestButtons({ category }: { category: string }) {
-  const services: Array<{ id: "sentry" | "paystack" | "stripe" | "smtp" | "cloudinary" | "resend"; label: string }> = [];
+  const services: Array<{ id: TestService; label: string }> = [];
   if (category === "monitoring") services.push({ id: "sentry", label: "Test Sentry" });
   if (category === "payments") {
     services.push({ id: "paystack", label: "Test Paystack" });
+    services.push({ id: "paystack_webhook", label: "Test Webhook" });
     services.push({ id: "stripe", label: "Test Stripe" });
   }
   if (category === "email") {
@@ -218,8 +222,6 @@ function CategoryTestButtons({ category }: { category: string }) {
     </div>
   );
 }
-// reference to silence unused-warning if categories without tests appear
-void TEST_SERVICE_FOR_CATEGORY;
 
 function TestServiceButton({
   service,

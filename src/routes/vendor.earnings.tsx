@@ -38,6 +38,12 @@ function VendorEarnings() {
     queryKey: ["my-earnings"],
     queryFn: () => fetchEarnings(),
   });
+  const fetchPayouts = useServerFn(getMyPayouts);
+  const { data: pData } = useQuery({
+    queryKey: ["my-payouts"],
+    queryFn: () => fetchPayouts(),
+  });
+
 
   return (
     <VendorShell title="Earnings & Payouts" subtitle="Your sales, balance, and withdrawal history">

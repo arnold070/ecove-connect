@@ -202,6 +202,74 @@ export async function sendRefundDecisionEmail(args: {
   });
 }
 
+// Vendor copy is shorter and operationally focused.
+const VENDOR_REFUND_COPY: Record<
+  RefundEmailStatus,
+  { subject: string; title: string; body: string }
+> = {
+  approved: {
+    subject: "Refund approved on your item",
+    title: "A refund was approved",
+    body: "We've approved the buyer's refund. The item has been restocked and the corresponding payout has been reversed in your ledger.",
+  },
+  rejected: {
+    subject: "Refund declined on your item",
+    title: "A refund was declined",
+    body: "We've declined the buyer's refund request. Your payout for this item is unaffected.",
+  },
+  cancelled: {
+    subject: "Refund cancelled by buyer",
+    title: "Buyer cancelled their refund request",
+    body: "No action is needed. Your payout for this item is unaffected.",
+  },
+  completed: {
+    subject: "Refund completed by Paystack",
+    title: "Refund settled with Paystack",
+    body: "Paystack has confirmed the refund to the buyer. The ledger reversal applied at approval time remains in effect.",
+  },
+};
+
+export async function sendVendorRefundEmail(args: {
+  to: string;
+  status: RefundEmailStatus;
+  productTitle: string;
+  amountKobo: number;
+  orderNumber?: string | null;
+  buyerEmail?: string | null;
+  note?: string | null;
+}) {
+  const copy = VENDOR_REFUND_COPY[args.status];
+  return sendEmail({
+    to: args.to,
+    subject: copy.subject,
+    html: shell(
+      copy.title,
+      `<p><strong>Item:</strong> ${escapeHtml(args.productTitle)}</p>
+       <p><strong>Amount:</strong> ${fmtNaira(args.amountKobo)}</p>
+       ${args.orderNumber ? `<p><strong>Order:</strong> ${escapeHtml(args.orderNumber)}</p>` : ""}
+       ${args.buyerEmail ? `<p><strong>Buyer:</strong> ${escapeHtml(args.buyerEmail)}</p>` : ""}
+       ${args.note ? `<p><strong>Admin note:</strong> ${escapeHtml(args.note)}</p>` : ""}
+       <p>${copy.body}</p>`,
+    ),
+  });
+}
+  const status: RefundEmailStatus =
+    args.status ?? (args.approved ? "approved" : "rejected");
+  const copy = REFUND_COPY[status];
+  return sendEmail({
+    to: args.to,
+    subject: copy.subject,
+    html: shell(
+      copy.title,
+      `<p><strong>Item:</strong> ${escapeHtml(args.productTitle)}</p>
+       <p><strong>Amount:</strong> ${fmtNaira(args.amountKobo)}</p>
+       ${args.note ? `<p><strong>Note from support:</strong> ${escapeHtml(args.note)}</p>` : ""}
+       ${args.reference ? `<p style="color:#666;font-size:13px">Reference: <code>${escapeHtml(args.reference)}</code></p>` : ""}
+       <p>${copy.body}</p>`,
+    ),
+  });
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

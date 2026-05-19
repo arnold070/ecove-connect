@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as VendorIndexRouteImport } from './routes/vendor.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as VendorStoreRouteImport } from './routes/vendor.store'
+import { Route as VendorSettingsRouteImport } from './routes/vendor.settings'
 import { Route as VendorReviewsRouteImport } from './routes/vendor.reviews'
 import { Route as VendorReturnsRouteImport } from './routes/vendor.returns'
 import { Route as VendorReportsRouteImport } from './routes/vendor.reports'
@@ -28,6 +29,7 @@ import { Route as VendorOrdersRouteImport } from './routes/vendor.orders'
 import { Route as VendorOnboardingRouteImport } from './routes/vendor.onboarding'
 import { Route as VendorInventoryRouteImport } from './routes/vendor.inventory'
 import { Route as VendorEarningsRouteImport } from './routes/vendor.earnings'
+import { Route as VendorDiagnosticsRouteImport } from './routes/vendor.diagnostics'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminProductsRouteImport } from './routes/admin.products'
@@ -89,6 +91,11 @@ const VendorStoreRoute = VendorStoreRouteImport.update({
   path: '/store',
   getParentRoute: () => VendorRoute,
 } as any)
+const VendorSettingsRoute = VendorSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => VendorRoute,
+} as any)
 const VendorReviewsRoute = VendorReviewsRouteImport.update({
   id: '/reviews',
   path: '/reviews',
@@ -132,6 +139,11 @@ const VendorInventoryRoute = VendorInventoryRouteImport.update({
 const VendorEarningsRoute = VendorEarningsRouteImport.update({
   id: '/earnings',
   path: '/earnings',
+  getParentRoute: () => VendorRoute,
+} as any)
+const VendorDiagnosticsRoute = VendorDiagnosticsRouteImport.update({
+  id: '/diagnostics',
+  path: '/diagnostics',
   getParentRoute: () => VendorRoute,
 } as any)
 const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
@@ -200,6 +212,7 @@ export interface FileRoutesByFullPath {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
+  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/onboarding': typeof VendorOnboardingRoute
@@ -209,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/admin/': typeof AdminIndexRoute
   '/vendor/': typeof VendorIndexRoute
@@ -229,6 +243,7 @@ export interface FileRoutesByTo {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
+  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/onboarding': typeof VendorOnboardingRoute
@@ -238,6 +253,7 @@ export interface FileRoutesByTo {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/admin': typeof AdminIndexRoute
   '/vendor': typeof VendorIndexRoute
@@ -261,6 +277,7 @@ export interface FileRoutesById {
   '/admin/products': typeof AdminProductsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
+  '/vendor/diagnostics': typeof VendorDiagnosticsRoute
   '/vendor/earnings': typeof VendorEarningsRoute
   '/vendor/inventory': typeof VendorInventoryRoute
   '/vendor/onboarding': typeof VendorOnboardingRoute
@@ -270,6 +287,7 @@ export interface FileRoutesById {
   '/vendor/reports': typeof VendorReportsRoute
   '/vendor/returns': typeof VendorReturnsRoute
   '/vendor/reviews': typeof VendorReviewsRoute
+  '/vendor/settings': typeof VendorSettingsRoute
   '/vendor/store': typeof VendorStoreRoute
   '/admin/': typeof AdminIndexRoute
   '/vendor/': typeof VendorIndexRoute
@@ -294,6 +312,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
+    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/onboarding'
@@ -303,6 +322,7 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
+    | '/vendor/settings'
     | '/vendor/store'
     | '/admin/'
     | '/vendor/'
@@ -323,6 +343,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
+    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/onboarding'
@@ -332,6 +353,7 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
+    | '/vendor/settings'
     | '/vendor/store'
     | '/admin'
     | '/vendor'
@@ -354,6 +376,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/settings'
     | '/checkout/success'
+    | '/vendor/diagnostics'
     | '/vendor/earnings'
     | '/vendor/inventory'
     | '/vendor/onboarding'
@@ -363,6 +386,7 @@ export interface FileRouteTypes {
     | '/vendor/reports'
     | '/vendor/returns'
     | '/vendor/reviews'
+    | '/vendor/settings'
     | '/vendor/store'
     | '/admin/'
     | '/vendor/'
@@ -455,6 +479,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VendorStoreRouteImport
       parentRoute: typeof VendorRoute
     }
+    '/vendor/settings': {
+      id: '/vendor/settings'
+      path: '/settings'
+      fullPath: '/vendor/settings'
+      preLoaderRoute: typeof VendorSettingsRouteImport
+      parentRoute: typeof VendorRoute
+    }
     '/vendor/reviews': {
       id: '/vendor/reviews'
       path: '/reviews'
@@ -516,6 +547,13 @@ declare module '@tanstack/react-router' {
       path: '/earnings'
       fullPath: '/vendor/earnings'
       preLoaderRoute: typeof VendorEarningsRouteImport
+      parentRoute: typeof VendorRoute
+    }
+    '/vendor/diagnostics': {
+      id: '/vendor/diagnostics'
+      path: '/diagnostics'
+      fullPath: '/vendor/diagnostics'
+      preLoaderRoute: typeof VendorDiagnosticsRouteImport
       parentRoute: typeof VendorRoute
     }
     '/checkout/success': {
@@ -624,6 +662,7 @@ const CheckoutRouteWithChildren = CheckoutRoute._addFileChildren(
 )
 
 interface VendorRouteChildren {
+  VendorDiagnosticsRoute: typeof VendorDiagnosticsRoute
   VendorEarningsRoute: typeof VendorEarningsRoute
   VendorInventoryRoute: typeof VendorInventoryRoute
   VendorOnboardingRoute: typeof VendorOnboardingRoute
@@ -633,6 +672,7 @@ interface VendorRouteChildren {
   VendorReportsRoute: typeof VendorReportsRoute
   VendorReturnsRoute: typeof VendorReturnsRoute
   VendorReviewsRoute: typeof VendorReviewsRoute
+  VendorSettingsRoute: typeof VendorSettingsRoute
   VendorStoreRoute: typeof VendorStoreRoute
   VendorIndexRoute: typeof VendorIndexRoute
   VendorProductsNewRoute: typeof VendorProductsNewRoute
@@ -641,6 +681,7 @@ interface VendorRouteChildren {
 }
 
 const VendorRouteChildren: VendorRouteChildren = {
+  VendorDiagnosticsRoute: VendorDiagnosticsRoute,
   VendorEarningsRoute: VendorEarningsRoute,
   VendorInventoryRoute: VendorInventoryRoute,
   VendorOnboardingRoute: VendorOnboardingRoute,
@@ -650,6 +691,7 @@ const VendorRouteChildren: VendorRouteChildren = {
   VendorReportsRoute: VendorReportsRoute,
   VendorReturnsRoute: VendorReturnsRoute,
   VendorReviewsRoute: VendorReviewsRoute,
+  VendorSettingsRoute: VendorSettingsRoute,
   VendorStoreRoute: VendorStoreRoute,
   VendorIndexRoute: VendorIndexRoute,
   VendorProductsNewRoute: VendorProductsNewRoute,
@@ -673,3 +715,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

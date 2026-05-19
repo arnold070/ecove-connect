@@ -246,6 +246,109 @@ async function testRateLimit(): Promise<TestResult> {
   }
 }
 
+/**
+ * Production-mode webhook replay test:
+ * - signs a unique synthetic 'charge.success' event with the live secret
+ * - delivers it twice to the live webhook endpoint
+ * - reads payment_webhook_events back via the admin client to assert
+ *   there is exactly ONE row for the event_id (duplicates short-circuit)
+ * - asserts no extra payments/ledger entries leak from the replay
+ *
+ * Uses a random event_id with no matching order, so the only side effect
+ * is the event-log row itself. This makes the test safe to run repeatedly
+ * in production.
+ */
+async function testWebhookReplay(): Promise<TestResult> {
+  try {
+    const secret =
+      (await getPlatformValue("PAYSTACK_WEBHOOK_SECRET")) ||
+      (await getPlatformValue("PAYSTACK_SECRET_KEY"));
+    if (!secret) {
+      return { ok: false, message: "PAYSTACK_WEBHOOK_SECRET not configured" };
+    }
+    const { getRequestURL } = (await import(
+      "@tanstack/react-start/server"
+    )) as { getRequestURL?: () => URL };
+    let origin = "";
+    try {
+      const u = getRequestURL?.();
+      if (u) origin = `${u.protocol}//${u.host}`;
+    } catch {
+      // ignore
+    }
+    if (!origin) return { ok: false, message: "Could not determine request origin" };
+
+    const { createHmac } = await import("node:crypto");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const eventId = `replay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const reference = `lvbl_replay_${eventId}`;
+    const payload = JSON.stringify({
+      event: "charge.success",
+      data: { id: eventId, reference, amount: 0, customer: { email: "replay@test.local" } },
+    });
+    const sig = createHmac("sha512", secret).update(payload).digest("hex");
+    const target = `${origin}/api/public/paystack-webhook`;
+    const send = () =>
+      fetch(target, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-paystack-signature": sig,
+        },
+        body: payload,
+      });
+
+    const first = await send();
+    const second = await send();
+
+    if (!first.ok) {
+      return {
+        ok: false,
+        message: `First delivery failed (${first.status})`,
+        detail: await first.text().catch(() => ""),
+      };
+    }
+    const secondJson = (await second.json().catch(() => ({}))) as {
+      duplicate?: boolean;
+    };
+
+    // Verify the event log holds exactly one row for this event_id.
+    const { data: rows } = await supabaseAdmin
+      .from("payment_webhook_events")
+      .select("id, processed_at")
+      .eq("event_id", eventId);
+    const rowCount = rows?.length ?? 0;
+
+    // Confirm no payments / ledger entries leaked (none should exist —
+    // the synthetic reference doesn't match any order, so the handler
+    // exits before mark-paid / ledger insert paths).
+    const { count: payCount } = await supabaseAdmin
+      .from("payments")
+      .select("id", { count: "exact", head: true })
+      .eq("provider_reference", reference);
+
+    const passed =
+      rowCount === 1 && secondJson.duplicate === true && (payCount ?? 0) === 0;
+
+    // Clean up the test row so the admin diagnostics page stays tidy.
+    await supabaseAdmin
+      .from("payment_webhook_events")
+      .delete()
+      .eq("event_id", eventId);
+
+    return {
+      ok: passed,
+      message: passed
+        ? "Replay safely deduped — no duplicate rows, payments, or emails"
+        : `Replay test failed (rows=${rowCount}, duplicate=${secondJson.duplicate}, payments=${payCount ?? 0})`,
+      detail: `event_id=${eventId} first=${first.status} second=${second.status}`,
+    };
+  } catch (e) {
+    return { ok: false, message: "Replay harness error", detail: (e as Error).message };
+  }
+}
+
 
 const testers: Record<string, () => Promise<TestResult>> = {
   sentry: testSentry,

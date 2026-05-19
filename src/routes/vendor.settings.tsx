@@ -184,6 +184,8 @@ function AdminSettingsView() {
             />
           ))}
 
+          <WebhookStatusCard />
+          <LiveChatPreviewCard />
           <AuditLogCard allKeys={allKeys} />
         </div>
       )}

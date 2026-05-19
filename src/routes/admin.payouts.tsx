@@ -146,10 +146,27 @@ function PayoutsTab() {
 
 function RefundsTab() {
   const fetchFn = useServerFn(listRefundsAdmin);
+  const exportFn = useServerFn(exportRefundsCsvAdmin);
   const qc = useQueryClient();
+  const [filters, setFilters] = useState<{
+    status?: string;
+    from?: string;
+    to?: string;
+    order_number?: string;
+    buyer_email?: string;
+  }>({});
+
+  const apiFilters = {
+    status: filters.status && filters.status !== "all" ? filters.status : undefined,
+    from: filters.from ? new Date(filters.from).toISOString() : undefined,
+    to: filters.to ? new Date(filters.to).toISOString() : undefined,
+    order_number: filters.order_number?.trim() || undefined,
+    buyer_email: filters.buyer_email?.trim() || undefined,
+  };
+
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-refunds"],
-    queryFn: () => fetchFn(),
+    queryKey: ["admin-refunds", apiFilters],
+    queryFn: () => fetchFn({ data: { filters: apiFilters } }),
   });
   const decide = useServerFn(decideRefundAdmin);
   const m = useMutation({
@@ -162,16 +179,110 @@ function RefundsTab() {
     onError: (e) => toast.error((e as Error).message),
   });
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [exporting, setExporting] = useState(false);
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  async function downloadCsv() {
+    setExporting(true);
+    try {
+      const res = await exportFn({ data: { filters: apiFilters } });
+      const blob = new Blob([res.csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = res.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${res.count} rows`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const refunds = (data?.refunds ?? []) as Array<{
+    id: string;
+    reason: string;
+    status: string;
+    admin_note: string | null;
+    created_at: string;
+    updated_at: string | null;
+    processed_at: string | null;
+    buyer_email?: string | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    item: any;
+  }>;
+
   return (
     <div className="space-y-3">
-      {data?.refunds.length === 0 && (
-        <p className="text-sm text-muted-foreground">No refund requests.</p>
+      <Card>
+        <CardContent className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-6">
+          <select
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={filters.status ?? "all"}
+            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+          >
+            <option value="all">All statuses</option>
+            <option value="requested">Requested</option>
+            <option value="approved">Approved</option>
+            <option value="refunded">Refunded</option>
+            <option value="rejected">Rejected</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <input
+            type="date"
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={filters.from ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, from: e.target.value }))}
+          />
+          <input
+            type="date"
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={filters.to ?? ""}
+            onChange={(e) => setFilters((f) => ({ ...f, to: e.target.value }))}
+          />
+          <input
+            type="text"
+            placeholder="Order #"
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={filters.order_number ?? ""}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, order_number: e.target.value }))
+            }
+          />
+          <input
+            type="email"
+            placeholder="Buyer email"
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={filters.buyer_email ?? ""}
+            onChange={(e) =>
+              setFilters((f) => ({ ...f, buyer_email: e.target.value }))
+            }
+          />
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setFilters({})}
+              className="flex-1"
+            >
+              Reset
+            </Button>
+            <Button size="sm" onClick={downloadCsv} disabled={exporting} className="flex-1">
+              {exporting ? "…" : "Export CSV"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {!isLoading && refunds.length === 0 && (
+        <p className="text-sm text-muted-foreground">No refund requests match.</p>
       )}
-      {data?.refunds.map((r) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const it = (r as any).item;
+      {refunds.map((r) => {
+        const it = r.item;
         return (
           <Card key={r.id}>
             <CardHeader className="pb-2">
@@ -183,6 +294,7 @@ function RefundsTab() {
               </div>
               <p className="text-xs text-muted-foreground">
                 Order {it?.order?.order_number} · {formatKobo(it?.vendor_payout_kobo ?? 0)}
+                {r.buyer_email ? ` · ${r.buyer_email}` : ""}
               </p>
             </CardHeader>
             <CardContent className="text-sm space-y-3">
@@ -190,8 +302,8 @@ function RefundsTab() {
               <RefundStatusTimeline
                 status={r.status as RefundStatus}
                 createdAt={r.created_at}
-                updatedAt={(r as { updated_at?: string | null }).updated_at}
-                processedAt={(r as { processed_at?: string | null }).processed_at}
+                updatedAt={r.updated_at}
+                processedAt={r.processed_at}
                 adminNote={r.admin_note}
               />
               {r.status === "requested" && (

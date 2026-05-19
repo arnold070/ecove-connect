@@ -217,3 +217,27 @@ function RefundDialog({ orderItemId, onDone }: { orderItemId: string; onDone: ()
     </Dialog>
   );
 }
+
+function CancelRefundButton({ refundId, onDone }: { refundId: string; onDone: () => void }) {
+  const cancel = useServerFn(cancelMyRefund);
+  const m = useMutation({
+    mutationFn: () => cancel({ data: { id: refundId } }),
+    onSuccess: () => {
+      toast.success("Refund request cancelled");
+      onDone();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      onClick={() => {
+        if (window.confirm("Cancel this refund request?")) m.mutate();
+      }}
+      disabled={m.isPending}
+    >
+      Cancel request
+    </Button>
+  );
+}

@@ -12,6 +12,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/auth/AuthProvider";
 import { LiveChatWidget } from "@/components/live-chat-widget";
+import { MobileBottomNav } from "@/components/site-header";
 
 import appCss from "../styles.css?url";
 

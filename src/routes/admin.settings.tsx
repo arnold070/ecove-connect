@@ -15,6 +15,11 @@ import {
   type PlatformSettingAuditEntry,
 } from "@/lib/platform-settings.functions";
 import { testPlatformService } from "@/lib/platform-tests.functions";
+import {
+  getPublicBranding,
+  uploadSiteLogo,
+  clearSiteLogo,
+} from "@/lib/branding.functions";
 import { getPaystackWebhookStatus } from "@/lib/webhooks.functions";
 import { validateKey, KEY_TO_TEST_SERVICE } from "@/lib/key-formats";
 import { LiveChatWidget } from "@/components/live-chat-widget";

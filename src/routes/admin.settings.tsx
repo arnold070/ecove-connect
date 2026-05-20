@@ -89,6 +89,7 @@ const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; desc
   analytics: { label: "Analytics", icon: <BarChart3 className="h-5 w-5" />, description: "Analytics and tracking service configuration" },
   email: { label: "Email & Notifications", icon: <Mail className="h-5 w-5" />, description: "SMTP and Resend keys for transactional email" },
   livechat: { label: "Live Chat Widget", icon: <MessageCircle className="h-5 w-5" />, description: "Configure Tawk.to, Crisp, or Intercom live chat on the storefront" },
+  branding: { label: "Branding", icon: <ImageIcon className="h-5 w-5" />, description: "Site logo and visual identity" },
   general: { label: "General", icon: <Settings className="h-5 w-5" />, description: "Other platform configuration" },
 };
 

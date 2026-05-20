@@ -15,6 +15,11 @@ import {
   type PlatformSettingAuditEntry,
 } from "@/lib/platform-settings.functions";
 import { testPlatformService } from "@/lib/platform-tests.functions";
+import {
+  getPublicBranding,
+  uploadSiteLogo,
+  clearSiteLogo,
+} from "@/lib/branding.functions";
 import { getPaystackWebhookStatus } from "@/lib/webhooks.functions";
 import { validateKey, KEY_TO_TEST_SERVICE } from "@/lib/key-formats";
 import { LiveChatWidget } from "@/components/live-chat-widget";
@@ -66,6 +71,9 @@ import {
   ChevronRight,
   Loader2,
   MessageCircle,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -81,6 +89,7 @@ const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode; desc
   analytics: { label: "Analytics", icon: <BarChart3 className="h-5 w-5" />, description: "Analytics and tracking service configuration" },
   email: { label: "Email & Notifications", icon: <Mail className="h-5 w-5" />, description: "SMTP and Resend keys for transactional email" },
   livechat: { label: "Live Chat Widget", icon: <MessageCircle className="h-5 w-5" />, description: "Configure Tawk.to, Crisp, or Intercom live chat on the storefront" },
+  branding: { label: "Branding", icon: <ImageIcon className="h-5 w-5" />, description: "Site logo and visual identity" },
   general: { label: "General", icon: <Settings className="h-5 w-5" />, description: "Other platform configuration" },
 };
 
@@ -136,7 +145,7 @@ function AdminSettingsView() {
     return acc;
   }, {});
 
-  const categoryOrder = ["payments", "storage", "email", "livechat", "monitoring", "analytics", "general"];
+  const categoryOrder = ["branding", "payments", "storage", "email", "livechat", "monitoring", "analytics", "general"];
   const sortedCategories = Object.keys(grouped).sort(
     (a, b) => (categoryOrder.indexOf(a) === -1 ? 99 : categoryOrder.indexOf(a)) - (categoryOrder.indexOf(b) === -1 ? 99 : categoryOrder.indexOf(b)),
   );
@@ -184,6 +193,7 @@ function AdminSettingsView() {
             />
           ))}
 
+          <BrandingCard />
           <WebhookStatusCard />
           <LiveChatPreviewCard />
           <AuditLogCard allKeys={allKeys} />
@@ -944,5 +954,128 @@ function AddKeyDialog({ onAdded }: { onAdded: () => void }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BrandingCard() {
+  const fetchBranding = useServerFn(getPublicBranding);
+  const uploadFn = useServerFn(uploadSiteLogo);
+  const clearFn = useServerFn(clearSiteLogo);
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["public-branding"],
+    queryFn: () => fetchBranding(),
+  });
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ["public-branding"] });
+  };
+
+  const uploadMutation = useMutation({
+    mutationFn: (dataUrl: string) => uploadFn({ data: { dataUrl } }),
+    onSuccess: () => {
+      toast.success("Logo updated");
+      refresh();
+    },
+    onError: (err) => toast.error(`Upload failed: ${(err as Error).message}`),
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: () => clearFn(),
+    onSuccess: () => {
+      toast.success("Logo removed");
+      refresh();
+    },
+    onError: (err) => toast.error(`Failed: ${(err as Error).message}`),
+  });
+
+  const handleFile = useCallback(
+    (file: File | null | undefined) => {
+      if (!file) return;
+      if (file.size > 3_500_000) {
+        toast.error("Image too large (max 3.5MB).");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === "string") uploadMutation.mutate(result);
+      };
+      reader.onerror = () => toast.error("Could not read file");
+      reader.readAsDataURL(file);
+    },
+    [uploadMutation],
+  );
+
+  const logoUrl = data?.logoUrl ?? null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <ImageIcon className="h-5 w-5" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Site Logo</CardTitle>
+            <CardDescription className="text-xs">
+              Shown in the storefront header on every page. PNG, JPG, WEBP or SVG. Max 3.5MB.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <div className="flex h-24 w-44 shrink-0 items-center justify-center rounded-lg border border-dashed border-border bg-muted/40 p-3">
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            ) : logoUrl ? (
+              <img
+                src={logoUrl}
+                alt="Current site logo"
+                className="max-h-full max-w-full object-contain"
+              />
+            ) : (
+              <span className="text-center text-xs text-muted-foreground">No logo yet — the text wordmark is shown.</span>
+            )}
+          </div>
+          <div className="flex flex-1 flex-col gap-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 self-start rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90">
+              {uploadMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {uploadMutation.isPending ? "Uploading…" : logoUrl ? "Replace logo" : "Upload logo"}
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                className="hidden"
+                onChange={(e) => handleFile(e.target.files?.[0])}
+                disabled={uploadMutation.isPending}
+              />
+            </label>
+            {logoUrl && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-fit gap-1.5 text-destructive hover:text-destructive"
+                onClick={() => clearMutation.mutate()}
+                disabled={clearMutation.isPending}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove logo
+              </Button>
+            )}
+            {logoUrl && (
+              <p className="break-all text-[11px] text-muted-foreground">
+                {logoUrl}
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

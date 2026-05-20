@@ -71,6 +71,9 @@ import {
   ChevronRight,
   Loader2,
   MessageCircle,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 

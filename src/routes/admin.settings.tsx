@@ -193,6 +193,7 @@ function AdminSettingsView() {
             />
           ))}
 
+          <BrandingCard />
           <WebhookStatusCard />
           <LiveChatPreviewCard />
           <AuditLogCard allKeys={allKeys} />

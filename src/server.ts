@@ -10,6 +10,17 @@ type ServerEntry = {
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
+function bindRuntimeEnv(env: unknown): void {
+  if (!env || typeof env !== "object") return;
+  if (typeof process === "undefined" || !process.env) return;
+
+  for (const [key, value] of Object.entries(env as Record<string, unknown>)) {
+    if (typeof value === "string" && process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
 async function getServerEntry(): Promise<ServerEntry> {
   if (!serverEntryPromise) {
     serverEntryPromise = import("@tanstack/react-start/server-entry").then(
@@ -76,6 +87,8 @@ async function normalizeCatastrophicSsrResponse(
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    bindRuntimeEnv(env);
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
